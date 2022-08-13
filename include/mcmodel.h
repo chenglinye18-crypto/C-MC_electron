@@ -140,6 +140,8 @@ class MeshQuantities {
 
   int step, total_step, electron_number, hole_number, default_electron_num, default_hole_num;
 
+  double device_temperature;
+
   bool Flag_MultipleRefresh;
 
   bool Flag_compute_potential;
@@ -337,7 +339,7 @@ class MeshQuantities {
 
   void scaling();
 
-  void init_phpysical_parameter();
+  void init_phpysical_parameter(char *);
 
   void getInputData(char *);
 
@@ -493,6 +495,8 @@ class MeshQuantities {
   void heat_density();
 
   void heat_to_point(double, Epetra_Vector *);
+
+  void read_Temperature_Input(char *);
 
 public:
   

@@ -1,0 +1,525 @@
+rank_ct: 1
+FileName: input.txt
+rank_ct: Tem: 0
+FileName: input.txt
+rank_ct: 300
+3
+rank_ct: FileName: input.txt
+2
+FileName: input.txt
+Tem: 300
+Open the Grid file successfully!
+Tem: p_numx: 51
+300
+Open the Grid file successfully!
+p_numx: 51
+Tem: 300
+Open the Grid file successfully!
+p_numx: 51
+Open the Grid file successfully!
+p_numx: 51
+Open the Device file successfully!
+Open the Device file successfully!
+Open the Device file successfully!
+Open the Device file successfully!
+Particle Number : 765936
+ ----- Total Step = 20000 ----- 
+************ step = 0 ********
+765936 particles
+time used: 0.211821s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.242449s
+ generate : 303, catch : 278
+ ----- Total Step = 20000 ----- 
+************ step = 1 ********
+765961 particles
+time used: 0.0607484s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.386207s
+ generate : 278, catch : 270
+ ----- Total Step = 20000 ----- 
+************ step = 2 ********
+765969 particles
+time used: 0.0601791s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.372907s
+ generate : 298, catch : 305
+ ----- Total Step = 20000 ----- 
+************ step = 3 ********
+765962 particles
+time used: 0.0603012s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.348011s
+ generate : 280, catch : 293
+ ----- Total Step = 20000 ----- 
+************ step = 4 ********
+765949 particles
+time used: 0.0612164s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.342183s
+ generate : 286, catch : 309
+ ----- Total Step = 20000 ----- 
+************ step = 5 ********
+765926 particles
+time used: 0.0676289s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.323852s
+ generate : 288, catch : 340
+ ----- Total Step = 20000 ----- 
+************ step = 6 ********
+765874 particles
+time used: 0.0612211s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.310346s
+ generate : 282, catch : 328
+ ----- Total Step = 20000 ----- 
+************ step = 7 ********
+765828 particles
+time used: 0.0629739s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.303432s
+ generate : 290, catch : 355
+ ----- Total Step = 20000 ----- 
+************ step = 8 ********
+765763 particles
+time used: 0.0628472s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.297508s
+ generate : 337, catch : 339
+ ----- Total Step = 20000 ----- 
+************ step = 9 ********
+765761 particles
+time used: 0.0640659s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.29575s
+ generate : 308, catch : 320
+ ----- Total Step = 20000 ----- 
+************ step = 10 ********
+765749 particles
+time used: 0.0660822s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293906s
+ generate : 301, catch : 335
+ ----- Total Step = 20000 ----- 
+************ step = 11 ********
+765715 particles
+time used: 0.06295s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.298982s
+ generate : 253, catch : 407
+ ----- Total Step = 20000 ----- 
+************ step = 12 ********
+765561 particles
+time used: 0.0624457s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.287531s
+ generate : 301, catch : 389
+ ----- Total Step = 20000 ----- 
+************ step = 13 ********
+765473 particles
+time used: 0.063606s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.290218s
+ generate : 306, catch : 415
+ ----- Total Step = 20000 ----- 
+************ step = 14 ********
+765364 particles
+time used: 0.0685126s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.295128s
+ generate : 308, catch : 445
+ ----- Total Step = 20000 ----- 
+************ step = 15 ********
+765227 particles
+time used: 0.062542s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.300365s
+ generate : 296, catch : 412
+ ----- Total Step = 20000 ----- 
+************ step = 16 ********
+765111 particles
+time used: 0.067818s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.295084s
+ generate : 296, catch : 455
+ ----- Total Step = 20000 ----- 
+************ step = 17 ********
+764952 particles
+time used: 0.0666364s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.294837s
+ generate : 271, catch : 390
+ ----- Total Step = 20000 ----- 
+************ step = 18 ********
+764833 particles
+time used: 0.0671766s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.296301s
+ generate : 277, catch : 437
+ ----- Total Step = 20000 ----- 
+************ step = 19 ********
+764673 particles
+time used: 0.0636006s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.29459s
+ generate : 302, catch : 430
+ ----- Total Step = 20000 ----- 
+************ step = 20 ********
+764545 particles
+time used: 0.0702963s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.295794s
+ generate : 268, catch : 415
+ ----- Total Step = 20000 ----- 
+************ step = 21 ********
+764398 particles
+time used: 0.0697099s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293952s
+ generate : 303, catch : 405
+ ----- Total Step = 20000 ----- 
+************ step = 22 ********
+764296 particles
+time used: 0.066791s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293066s
+ generate : 306, catch : 440
+ ----- Total Step = 20000 ----- 
+************ step = 23 ********
+764162 particles
+time used: 0.0659764s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.292362s
+ generate : 267, catch : 459
+ ----- Total Step = 20000 ----- 
+************ step = 24 ********
+763970 particles
+time used: 0.0683707s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.292826s
+ generate : 325, catch : 463
+ ----- Total Step = 20000 ----- 
+************ step = 25 ********
+763832 particles
+time used: 0.0590816s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.287858s
+ generate : 295, catch : 450
+ ----- Total Step = 20000 ----- 
+************ step = 26 ********
+763677 particles
+time used: 0.066616s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.29662s
+ generate : 299, catch : 468
+ ----- Total Step = 20000 ----- 
+************ step = 27 ********
+763508 particles
+time used: 0.065786s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.29393s
+ generate : 289, catch : 437
+ ----- Total Step = 20000 ----- 
+************ step = 28 ********
+763360 particles
+time used: 0.0629312s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.294085s
+ generate : 324, catch : 466
+ ----- Total Step = 20000 ----- 
+************ step = 29 ********
+763218 particles
+time used: 0.067816s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293319s
+ generate : 306, catch : 475
+ ----- Total Step = 20000 ----- 
+************ step = 30 ********
+763049 particles
+time used: 0.0636387s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.30017s
+ generate : 319, catch : 512
+ ----- Total Step = 20000 ----- 
+************ step = 31 ********
+762856 particles
+time used: 0.0678538s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.300144s
+ generate : 304, catch : 520
+ ----- Total Step = 20000 ----- 
+************ step = 32 ********
+762640 particles
+time used: 0.0682121s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.29577s
+ generate : 313, catch : 487
+ ----- Total Step = 20000 ----- 
+************ step = 33 ********
+762466 particles
+time used: 0.068243s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.294215s
+ generate : 335, catch : 463
+ ----- Total Step = 20000 ----- 
+************ step = 34 ********
+762338 particles
+time used: 0.0702079s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.303562s
+ generate : 352, catch : 518
+ ----- Total Step = 20000 ----- 
+************ step = 35 ********
+762172 particles
+time used: 0.0664379s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293081s
+ generate : 301, catch : 510
+ ----- Total Step = 20000 ----- 
+************ step = 36 ********
+761963 particles
+time used: 0.0662513s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.292567s
+ generate : 352, catch : 557
+ ----- Total Step = 20000 ----- 
+************ step = 37 ********
+761758 particles
+time used: 0.0688156s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293961s
+ generate : 330, catch : 536
+ ----- Total Step = 20000 ----- 
+************ step = 38 ********
+761552 particles
+time used: 0.064641s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.29316s
+ generate : 327, catch : 547
+ ----- Total Step = 20000 ----- 
+************ step = 39 ********
+761332 particles
+time used: 0.0679546s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.293343s
+ generate : 324, catch : 536
+ ----- Total Step = 20000 ----- 
+************ step = 40 ********
+761120 particles
+time used: 0.0667224s
+particle fly .. 
+MPI_Allreduce() finished 
+ loop 1 : 0 particles unfinished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+MPI_Allreduce() finished 
+time used: 0.292607s
+ generate : 344, catch : 585
+ ----- Total Step = 20000 ----- 
+************ step = 41 ********
+760879 particles
+time used: 0.068017s
+[mpiexec@localhost.localdomain] Sending Ctrl-C to processes as requested
+[mpiexec@localhost.localdomain] Press Ctrl-C again to force abort
+particle fly .. 
+Ctrl-C caught... cleaning up processes

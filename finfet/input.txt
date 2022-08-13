@@ -8,6 +8,8 @@ ElectronNumber=600000
 
 HoleNumber=100000
 
+Temperature=300
+
 dt=2e-16
 
 stat_step=10000

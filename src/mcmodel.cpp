@@ -44,7 +44,7 @@ void MeshQuantities::initialize(char *FileName)
 
   cout << "FileName: " << FileName << endl;
   /* Initialize Physical Parameters */
-  init_phpysical_parameter();
+  init_phpysical_parameter(FileName);
 
   /* read the input file defined by user */
   getInputData(FileName);
@@ -112,6 +112,23 @@ void MeshQuantities::initialize(char *FileName)
 
   if (!Flag_compute_potential)
     read_potential();
+}
+
+/* -------------------------------------------------------------------------- */
+/** @brief 为便于修改模拟温度，新设置获取温度的函数
+ *
+ */
+/* ---------------------------------------------------------------------------- */
+void MeshQuantities::read_Temperature_Input(char *FileName){
+
+  // get the input from the input file
+  Trilinos_Util::InputFileReader fileReader(FileName);
+
+  fileReader.ReadFile();
+
+  // 这里一定要写300.0，不然Get()会选择int，4.2时就不行了
+  device_temperature = fileReader.Get("Temperature", 300.0); 
+  
 }
 
 /* -------------------------------------------------------------------------- */
@@ -4160,7 +4177,7 @@ void MeshQuantities::getInputData(char *FileName)
  * @brief 初始化物理参数
  */
 
-void MeshQuantities::init_phpysical_parameter()
+void MeshQuantities::init_phpysical_parameter(char * FileName)
 {
 
   frickel = 1.0;
@@ -4193,11 +4210,13 @@ void MeshQuantities::init_phpysical_parameter()
     siul = 9.05e3;
     siut = 9.05e3;
   }
-  // get the material coefficients
+  // get the material coefficients(temperature)
   //____and normalize them
   
   //T0 = 300;
-  T0 = 4.2;
+  read_Temperature_Input(FileName);
+  T0 = device_temperature;
+  cout << "Tem: " << T0 << endl;
   Tn = T0 / 300.0;
 
   // energy [eV]/electon rest mass [kg]/Planck's constant [eVs] /
