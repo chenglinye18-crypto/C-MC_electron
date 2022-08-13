@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="195"
+   name=""
+   committed-date="2010-06-29T01:15:17.058019Z"
+   url="svn+ssh://svn@162.105.69.209:/home/svn/mc3d/branch/ep/output"
+   last-author="svn"
+   kind="dir"
+   uuid="c04a761f-1b1e-4fc6-9691-31f84ec48fe9"
+   revision="198"/>
+<entry
+   name="input"
+   kind="dir"/>
+<entry
+   committed-rev="181"
+   name="lgrid.txt"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-06T13:12:41.853674Z"
+   checksum="609c576b70cb8adea9678171ad683be5"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="102"
+   name="mkinput.sh"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-30T11:23:08.587897Z"
+   checksum="31d0e60f1a391d20a36af981efe64d74"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="181"
+   name="ldg.txt"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-06T13:12:41.853674Z"
+   checksum="1552e4ea3b139aceb7979aa0ea6d3372"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="181"
+   name="main"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-06T13:12:41.853674Z"
+   checksum="d44c033df61a68955ee5f3f3a5c9506f"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   name="submits"
+   kind="dir"/>
+<entry
+   name="scripts"
+   kind="dir"/>
+<entry
+   name="data"
+   kind="dir"/>
+<entry
+   name="plot3d-gnuplot"
+   kind="dir"/>
+<entry
+   committed-rev="195"
+   name="input.txt"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-29T01:15:17.058019Z"
+   checksum="72acd052616b99b2fff5037c64b72d7d"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+</wc-entries>

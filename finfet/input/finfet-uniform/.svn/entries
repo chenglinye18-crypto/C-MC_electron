@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="181"
+   name=""
+   committed-date="2010-06-06T13:12:41.853674Z"
+   url="svn+ssh://svn@162.105.69.209:/home/svn/mc3d/branch/ep/output/input/finfet-uniform"
+   last-author="svn"
+   kind="dir"
+   uuid="c04a761f-1b1e-4fc6-9691-31f84ec48fe9"
+   revision="198"/>
+<entry
+   committed-rev="124"
+   name="grid.txt"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-04-10T11:59:15.694901Z"
+   checksum="b04c6726a90b925635bde92c046892a4"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="128"
+   name="par_info_restart_vg1_vd1_noqc_99999"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-04-12T09:57:49.391758Z"
+   checksum="c88aee82cf079cd6f6b4cd73e0e50361"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   name="plot3d"
+   kind="dir"/>
+<entry
+   committed-rev="181"
+   name="dg.txt"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-06T13:12:41.853674Z"
+   checksum="e0a7f19f4b778d7a91b05fe738af278e"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+</wc-entries>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="87"
+   name=""
+   committed-date="2010-03-11T13:40:22.291208Z"
+   url="svn+ssh://svn@162.105.69.209:/home/svn/mc3d/branch/ep/output/plot3d-gnuplot"
+   last-author="svn"
+   kind="dir"
+   uuid="c04a761f-1b1e-4fc6-9691-31f84ec48fe9"
+   revision="198"/>
+<entry
+   committed-rev="86"
+   name="utils.c"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:21:31.577773Z"
+   checksum="b7c926dd6070bfc177df4c8e4fe88364"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="86"
+   name="template.gnuplot"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:21:31.577773Z"
+   checksum="ce6006bd74ef7bc669a29e1b609c4ff1"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="87"
+   name="config.txt"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:40:22.291208Z"
+   checksum="b7d5c5e1b0f5e5c96b412f8ac3f91c68"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="86"
+   name="gen_data.c"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:21:31.577773Z"
+   checksum="ed2fd5e2d24372eb7a088a427810bdf9"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   name="fig"
+   kind="dir"/>
+<entry
+   committed-rev="86"
+   name="utils.h"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:21:31.577773Z"
+   checksum="a56be6ac76d25caaabbd27a451eca22a"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="87"
+   name="plot.sh"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:40:22.291208Z"
+   checksum="98284201af87dd8c33022ce9d6a42336"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   name="data"
+   kind="dir"/>
+<entry
+   committed-rev="86"
+   name="makefile"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-03-11T13:21:31.577773Z"
+   checksum="156389efab5951460ba43c2bf895c8b3"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+</wc-entries>

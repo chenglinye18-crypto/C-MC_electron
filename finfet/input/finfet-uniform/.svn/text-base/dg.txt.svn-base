@@ -1,0 +1,81 @@
+  default_par_number 30 5
+
+  donor 0 10 -32 32 0 10 0
+
+  donor  0 10 -32 -10 0 10  1e26 
+
+  donor  0 10 10 32 0 10  1e26 
+
+  acceptor  0 10 -32 32 0 10 0 
+
+  acceptor 0 10 -10 10 0 10 1e22
+    	    
+  region  -1 110  -32 32 -1 11 VACUUM 
+
+  region  0 10 -32 32 0 10 SILICON 
+
+  region  10 110 -32 32 0 10 OXIDE 
+
+  region  -1 0 -32 32 -1 11 OXIDE 
+
+  region  0 10 -32 32 -1 0 OXIDE 
+
+  region  0 10 -32 32 10 11 OXIDE 
+
+  motioncube  0 10 -32 32 0 10 PASS   PASS   PASS   PASS  PASS PASS 
+
+  motionplane  0 10 -31 -31 0 10  LEFT CATCH
+  motionplane  0 10 -31 -31 0 10 RIGHT GENERATE 
+  motionplane  0 10 -32 -32 0 10 LEFT SCATTOX
+
+  motionplane  0 10 31 31 0 10 RIGHT CATCH
+  motionplane  0 10 31 31 0 10 LEFT GENERATE
+  motionplane  0 10 32 32 0 10 RIGHT SCATTOX
+
+  motionplane 10 10 -32 32 0 10 DOWN SCATTOX
+
+  motionplane  0 0 -32 32 0 10   UP SCATTOX
+
+  motionplane 0 10 -32 32 0 0 FRONT SCATTOX
+
+  motionplane 0 10 -32 32 10 10 BACK SCATTOX
+
+  attachcontact  0 10 -32 32 0 10 0 
+  
+  attachcontact  0 10 -32 -30 0 10 1  
+  
+  attachcontact  0 10 30 32 0 10 2  
+
+  ScatterArea 0 10 -32 32 0 10 3	
+  
+  VsVdVg 0 0.6 0.5 4.25
+  vgrange -10 10 0 3  
+
+  ep_parm 4 0.5 4 0.5 4 0.5 3.1
+ 
+  surfaces 4
+    0 0 0
+    0 10 1
+    2 0 4
+    2 10 5
+
+  quantumRegion 0 10 -32 32 0 10
+
+  contact
+    1 0 
+    0 10 -32 -32 0 10
+    0     
+
+  contact 
+    1 0
+    0 10 32 32 0 10
+    1
+
+  contact
+    3 0 
+    -1 -1 -10 10 -1 11 
+    -1 10 -10 10 -1 -1 
+    -1 10 -10 10 11 11 
+    1
+end
+

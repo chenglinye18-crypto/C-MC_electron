@@ -1,0 +1,129 @@
+#                                               -*- Autoconf -*-
+# Process this file with autoconf to produce a configure script.
+
+#AC_PREREQ([2.63])
+AC_INIT(epmc, 1.0, [wzhangpku@gmail.com])
+AC_CONFIG_SRCDIR([src])
+AC_CONFIG_HEADER(config.h)
+AC_CANONICAL_SYSTEM
+AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+
+EPMC_PATH=`pwd`
+AC_SUBST(EPMC_PATH)
+
+AC_ARG_WITH([blas], 
+	    AS_HELP_STRING([--with-blas=libblas.a],
+	    [Specify the path and filename of blas library]),
+            [with_blas_libname=$with_blas],
+            [with_blas_libname=libblas.a])
+AC_ARG_WITH([lapack], 
+	    AS_HELP_STRING([--with-lapack=liblapack.a],
+	    [Specify the path and filename of lapack library]),
+            [with_lapack_libname=$with_lapack],
+            [with_lapack_libname=lapack.a])
+AC_ARG_WITH([trilinos], 
+	    AS_HELP_STRING([--with-trilinos=/usr/local/trilinos],
+	    [Specify the path and filename of trilinos]),
+            [trilinos_home=$with_trilinos],
+            [trilinos_home=/usr/local/trilinos])
+AC_ARG_WITH([mpi], 
+	    AS_HELP_STRING([--with-mpi=-lmpich],
+	    [Specify the path and filename of mpi]),
+            [mpi_libname=$with_mpi],
+            [mpi_libname=-lmpich])
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_CXX
+AC_PROG_LN_S
+AC_PROG_F77
+AC_CHECK_TOOL(AR, ar, :)
+AC_CHECK_TOOL(DOCGEN, doxygen, :)
+AC_LANG(C++)
+
+CPPFLAGS="$EXTRA_INCDIR"
+CFLAGS="$EXTRA_INCDIR -g"
+CXXFLAGS="$EXTRA_INCDIR -g"
+
+AC_ARG_ENABLE(shared,
+  AC_HELP_STRING([--enable-optimize], [if using -O3 optimizing compiling flags(default: yes)]),,
+  [enable_optimize=yes])
+
+AC_MSG_CHECKING([if optimize support was requested])
+if test "x$enable_optimize" != xno; then
+  AC_MSG_RESULT(yes)
+  CFLAGS="-O3 $CFLAGS"
+  CXXFLAGS="-O3 $CXXFLAGS"
+else
+  AC_MSG_RESULT(no)
+fi
+
+LIBS="$with_blas_libname"
+
+AC_TRY_LINK([],
+  [],
+  blas=yes, blas=no)
+AC_MSG_CHECKING([for blas library])
+if test "x$blas" != xno; then
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+  AC_ERROR([blas library not found])
+fi
+
+LIBS="$with_lapack_libname $LIBS"
+
+AC_TRY_LINK([],
+  [],
+  lapack=yes, lapack=no)
+AC_MSG_CHECKING([for lapack library])
+if test "x$lapack" != xno; then
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+  AC_ERROR([lapack library not found])
+fi
+
+CFLAGS="-I$trilinos_home/include"
+CXXFLAGS="-I$trilinos_home/include"
+
+AC_SUBST(CFLAGS)
+AC_SUBST(CXXFLAGS)
+
+AC_TRY_COMPILE([
+  #include "Epetra_Vector.h"], 
+  [],
+  trilinos_header=yes, trilinos_header=no)
+
+AC_MSG_CHECKING([for trilinos header files])
+if test "x$trilinos_header" != xno; then
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+  AC_ERROR([trilinos header not found])
+fi
+
+# Checks for libraries.
+LIBS="$LIBS -L$trilinos_home/lib -lnox"
+AC_TRY_LINK([
+#include "Epetra_Vector.h"], 
+[],
+trilinos_library=yes, trilinos_library=no)
+
+AC_MSG_CHECKING([for trilinos library ])
+if test "x$trilinos_library" != xno; then
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+  AC_ERROR([trilinos library not found])
+fi
+
+LIBS="-L$trilinos_home/lib -lnoxepetra -lnox -lifpack -lml -lamesos -lepetra -ltriutils -laztecoo -lepetra -lteuchoscomm -lteuchoscore -lteuchosnumerics -lteuchosremainder -lteuchosparameterlist -lg2c -lm \ 
+	$with_lapack_libname $with_blas_libname $mpi_libname"
+
+# Checks for header files.
+
+AC_OUTPUT(Makefile \
+  lib/Makefile)
+

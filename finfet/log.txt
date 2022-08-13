@@ -1,0 +1,165 @@
+FileName: input.txt
+--- After Initializing physical parameters ---
+FileName: input.txt
+FileName: input.txt
+FileName: input.txt--- After Initializing physical parameters ---
+
+--- After Initializing physical parameters ---
+--- After Initializing physical parameters ---
+
+Trilinos_Util_Map :: 
+ElectronNumber = 600000
+
+Trilinos_Util_Map :: 
+ElectronNumber = 600000
+Flag_MultipleRefresh = 1
+Flag_QuantumCorrection = 1
+Trilinos_Util_Map :: 
+ElectronNumber = 600000
+Flag_MultipleRefresh = 1
+Flag_QuantumCorrection = 1
+Flag_compute_heat = 1
+Flag_MultipleRefresh = 1
+Flag_QuantumCorrection = 1
+Flag_compute_heat = 1
+Flag_compute_potential = 1
+Flag_restart = 0
+HoleNumber = 100000
+NonLinearPoisson = 0
+debug_print_step = 1000
+device_file_name = ldg.txt
+dt
+Trilinos_Util_Map :: 
+ElectronNumber = 600000
+Flag_MultipleRefresh = 1
+Flag_QuantumCorrection = 1
+Flag_compute_heat = 1
+Flag_compute_potential = 1
+Flag_compute_heat = 1
+Flag_compute_potential = 1
+Flag_restart = 0
+HoleNumber = 100000
+NonLinearPoisson = 0
+debug_print_step = 1000
+device_file_name = ldg.txt
+dtFlag_compute_potential = 1
+Flag_restart = 0
+HoleNumber = 100000
+NonLinearPoisson = 0
+debug_print_step = 1000
+device_file_name = ldg.txt
+dt =  = 2e-16
+gridFile = lgrid.txt
+heat_steps = 20000
+mr_step = 50
+quantum_print_steps = 1000
+quantum_start_step = 1
+quantum_stat_step = 1
+restart_filename = ./data/par_info_restart0
+restart_step = 0
+stat_heat_step = 10000
+Flag_restart = 0
+HoleNumber = 100000
+NonLinearPoisson = 0
+debug_print_step = 1000
+device_file_name = ldg.txt
+dt = 2e-16
+gridFile = lgrid.txt
+heat_steps = 20000
+mr_step = 50
+quantum_print_steps = 1000
+quantum_start_step = 1
+quantum_stat_step = 1
+restart_filename = ./data/par_info_restart02e-16
+gridFile = lgrid.txt
+heat_steps = 20000
+mr_step = 50
+quantum_print_steps = 1000
+quantum_start_step = 1
+quantum_stat_step = 
+stat_step = 10000
+total_step = 20000
+valley = 1
+--- After Getting Input Data ---
+ = 2e-16
+gridFile = lgrid.txt
+heat_steps = 20000
+mr_step = 50
+quantum_print_steps = 1000
+quantum_start_step
+restart_step = 0
+stat_heat_step = 10000
+stat_step = 10000
+total_step = 20000
+valley = 1
+1
+restart_filename = ./data/par_info_restart0
+restart_step = 0
+stat_heat_step = 10000
+stat_step = 10000
+total_step = 20000Open the Grid file successfully!
+ = 1
+quantum_stat_step = 1
+restart_filename = ./data/par_info_restart0
+restart_step = 0
+stat_heat_step = --- After Getting Input Data ---
+
+valley = 1
+--- After Getting Input Data ---
+p_numx: 51
+10000
+stat_step = 10000
+total_step = 20000
+valley = 1
+Open the Grid file successfully!
+p_numx: --- After Getting Input Data ---
+51
+Open the Grid file successfully!
+p_numx: Open the Grid file successfully!
+51
+p_numx: 51
+--- After Reading grid file ---
+--- After Reading grid file ---
+--- After Reading grid file ---
+--- After Reading grid file ---
+--- After initializing epetra map vector ---
+--- After initializing epetra map vector ---
+Open the Device file successfully!
+Open the Device file successfully!
+--- After initializing epetra map vector ---
+Open the Device file successfully!
+--- After Read Device ---
+--- After Read Device ---
+--- After initializing epetra map vector ---
+--- After Read Device ---
+Open the Device file successfully!
+--- After Read Device ---
+--- After deep ---
+--- After deep ---
+--- After deep ---
+--- After deep ---
+--- After initialing by user input ---
+--- After initialing by user input ---
+--- After initialing by user input ---
+--- After initialing by user input ---
+--- After scaling ---
+--- After scaling ---
+--- After scaling ---
+--- After scaling ---
+Particle Number : 765936
+ ----- Total Step = 20000 ----- 
+************ step = 0 ********
+765936 particles
+time used: 0.221231s
+particle fly .. 
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 223182 RUNNING AT localhost.localdomain
+=   EXIT CODE: 139
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+YOUR APPLICATION TERMINATED WITH THE EXIT STRING: Segmentation fault (signal 11)
+This typically refers to a problem with your application.
+Please see the FAQ page for debugging suggestions
