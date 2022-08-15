@@ -52,41 +52,39 @@ void MeshQuantities::initialize(char *FileName)
   /* read the grid data of physical model */
   read_grid_file();
   
-
-  /*define the vectors*/
+  /* define the vectors */
   init_epetra_map_vector();
 
-  /*load used-provided file*/
+  /* load used-provided file */
   read_device_file();
   
-
   init_deep();
   
-
   init_by_user_input();
   
-
+  /* scale(normalize) */
   scaling();
   
-
-  /*init band structure*/
+  /* init band structure */
   band.IELEC(bs_path);
 
-  /*init cell data*/
+  /* init cell data */
   init_cell_data();
 
+  /* init surface roughness param */
   if (Flag_SurfaceScatter)
     init_surface_roughness();
 
-  /*init point data*/
+  /* init point data */
   init_point_data();
 
-  init_particle_data(); /*init particles according to nuetrality condition*/
+  /* init particles according to nuetrality condition */ 
+  init_particle_data(); 
 
-  /*init poisson matrix*/
+  /* init poisson matrix */
   init_poisson_matrix();
 
-  /*initialize for quantum correction*/
+  /* initialize for quantum correction */
   if (Flag_QuantumCorrection)
   {
     clear_quantum_stat_pot();
@@ -2058,7 +2056,7 @@ void MeshQuantities::particle_fly()
       ImpScTf = 2 * dt;
       ImpScGamma = 1.0 / scrt0;
     }
-    /*surface scattering time */
+    /* surface scattering time */
     if ((Flag_SurfaceScatter) && ((*c_InSurfRegion)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)]))
     {
       if (Flag_GetSurfScTime)
@@ -2175,7 +2173,7 @@ void MeshQuantities::particle_fly()
 
       break;
     }
-      /* phonon scattering*/
+      /* phonon scattering */
     case 3:
     {
       /* increase number of phonon scattering*/
@@ -2218,10 +2216,10 @@ void MeshQuantities::particle_fly()
       Flag_GetImpScTime = true;
       break;
     }
-      /*surface scattering*/
+      /* surface scattering */
     case 5:
     {
-      /*process surface scattering event */
+      /* process surface scattering event */
       ParticleSurfaceScatter();
       /*TODO */
       if (!Flag_SelfScatter)
@@ -3396,9 +3394,11 @@ void MeshQuantities::init_particle_data()
           }
 }
 
-/*init the vectors according to device file,
- * such as dopping density for donor and acceptor,
- * particles' number */
+/**
+ * @brief init the vectors according to device file,
+ *        such as dopping density for donor and acceptor,
+ *        particles' number 
+ */
 void MeshQuantities::init_by_user_input()
 {
 
@@ -3492,7 +3492,7 @@ void MeshQuantities::init_by_user_input()
 void MeshQuantities::init_surface_roughness()
 {
   int i, j, k, isurf;
-  double dist;
+  double dist;  // distance
   int *nearestSurf, *EeffDirection;
 
   c_nearestSurf->ExtractView(&nearestSurf);
@@ -3503,6 +3503,7 @@ void MeshQuantities::init_surface_roughness()
       for (j = c_jbegin_ghost; j <= c_jend_ghost; j++)
       {
         dist = 1e99;
+        // 初始化surface的距离 及 最近的界面
         for (isurf = 0; isurf < NumSurface; isurf++)
         {
           if ((SurfaceType[isurf] == 0) && (dist > fabs(lx[i] - SurfacePosition[isurf])))
@@ -4188,30 +4189,46 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
 
   psi_si = 4.05;
 
+  /**
+   * @brief initialize bulk parameters
+   * 
+   * @param sia0
+   *        lattice constant
+   * @param sirh0
+   *        mass density
+   * @param siul, siut
+   *        sound velocity(l: longitudinal, t: transverse )
+   */
   if (gaasfl)
   {
-    // gaas bulk parameters
-    // lattice constant
+    // GaAs
     sia0 = 5.64e-10;
-    // mass density
+    
     sirho = 5.36e3;
-    // sound velocity
+    
     siul = 5.24e3;
     siut = 2.47e3;
   }
   else if (sifl)
   {
-    // si bulk parameters
-    // lattice constant
+    // Si
     sia0 = 5.43e-10;
-    // mass density
+    
     sirho = 2.33e3;
-    // sound velocity
+    
     siul = 9.05e3;
     siut = 9.05e3;
   }
-  // get the material coefficients(temperature)
-  //____and normalize them
+  
+  /**
+   * @brief get the material coefficients
+   *        and normalize them
+   * 
+   * @param T0 
+   *        Temperature [K]
+   * @param Tn
+   *        normalized Temperature
+   */
   
   //T0 = 300;
   read_Temperature_Input(FileName);
@@ -4219,49 +4236,122 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   cout << "Tem: " << T0 << endl;
   Tn = T0 / 300.0;
 
-  // energy [eV]/electon rest mass [kg]/Planck's constant [eVs] /
-  //____electron charge [As]
+  /**
+   * @param eV0
+   *        energy (kBT) [eV]
+   * @param em0
+   *        electron rest mass (m) [kg]
+   * @param hq0
+   *        Planck's constant (hbar) [eV·s]
+   * @param ec0
+   *        electron charge [A·s]([C])
+   */
   eV0 = BOLTZ * T0;
   em0 = EM;
   hq0 = PLANCK;
   ec0 = EC;
-  //     momentum [eVs/m]/r-space [m]/k-space [1/m]/time [s] /
-  //____velocity [m/s]
+
+  //debug
+  cout << "eV0: " << eV0 << endl;
+
+  /**
+   * @param rmom0
+   *        momentum ( sqrt(m·kB·T/q) ) [eV·s/m]
+   * @param spr0
+   *        r-space [m]
+   * @param spk0
+   *        k-space [1/m]
+   * @param time0 
+   *        time [s]
+   * @param velo0
+   *        velocity [m/s]
+   * @param cvr
+   *        ratio between light velocity and velocity
+   */
   rmom0 = sqrt((em0 / ec0) * eV0);
   spr0 = hq0 / rmom0;
   spk0 = 1.0 / spr0;
   time0 = hq0 / eV0;
   velo0 = spr0 / time0;
   cvr = CLIGHT / velo0;
-  //____el. potential [V]/el. field [V/m]/concentration [1/m**3]
+
+  //debug for Crygenic Tem
+  cout << "rmom0: " << rmom0 
+      << "\tspr0: " << spr0
+      << "\tspk0: " << spk0
+      << "\ttime0: " << time0
+      << "\tvelo0: " << velo0
+      << "\tcvr: " << cvr << endl;
+
+  /**
+   * @param pot0
+   *        electrical potential [V]
+   * @param field0
+   *        electrical field [V/m]
+   * @param conc0
+   *        concentration [1/m**3]
+   */
   pot0 = eV0;
   field0 = pot0 / spr0;
   conc0 = spk0 * spk0 * spk0;
-  //____mass density [kg/m**3]
+
+  /**
+   * @param dens0 
+   *        mass density [kg/m**3]
+   */
   dens0 = em0 * conc0;
 
-  //____deformation potential constant [eV/m]/scattering rate [1/s]
+  /**
+   * @param dpc0  
+   *        deformation potential constant [eV/m]
+   * @param scrt0
+   *        scattering rate [1/s]
+   */
   dpc0 = field0;
   scrt0 = 1.0 / time0;
 
-  //____current [A/m]
+  /**
+   * @param current [A/m]
+   */
   curr0 = ec0 / time0;
 
-  // effective density of state: 2.82 x 1e25 , aproximately
+  /**
+   * @param Nc
+   *        effective density of state: 2.82 x 1e25 , aproximately
+   * @param N_cur
+   *        
+   */
   Nc = 2 * pow(1.08 * em0 * pot0 / (hq0 * hq0 * ec0 * 2 * PI), 1.5);
 
   N_cur = 2 * hq0 / (em0 * PI * PI) * pow((em0 * eV0) / (hq0 * hq0), 2) / ec0;
 
-  // quantum potential coefficient
+  /**
+   * @param QuantumPotentialCoef
+   *        quantum potential coefficient
+   */
   QuantumPotentialCoef = hq0 * hq0 * ec0 / (12.0 * 0.26 * em0 * spr0 * spr0 * pot0);
 
-  //____Si bulk parameters
+  /**
+   * @brief normalize Si bulk parameters ?
+   * 
+   * @param sia0
+   *        lattice constant a
+   * @param sirh0
+   *        mass density
+   * @param siul, siut
+   *        sound velocity 
+   */
   sia0 = sia0 / spr0;
   sirho = sirho / dens0;
   siul = siul / velo0;
   siut = siut / velo0;
 
-  //____temperature dependent band gap
+  /**
+   * @brief temperature dependent band gap
+   * 
+   * @param sieg
+   *        Si energy bandgap
+   */
   if (T0 < 190.0)
     sieg = (1.170 + 1.059e-5 * T0 - 6.05e-7 * T0 * T0) / eV0;
   else if (T0 < 250.0)
@@ -4269,11 +4359,16 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   else
     sieg = (1.2060 - 2.730e-4 * T0) / eV0;
 
-  //____Defines a0pi
+  /**
+   * @brief Defines a0pi(2pi/a)
+   */
   a0pi = TWOPI / sia0;
 
-  //____get relative dielectric constant and normalize (eps_vacuum <> 1 within
-  //     the program)
+
+  /**
+   * @brief get relative dielectric constnat and normalize
+   *        (eps_vacuum <> 1 within the program)
+   */
   eps[VACUUM] = 1.00 / (4 * PI * cvr * FSC);
   eps[OXIDE] = 3.90 / (4 * PI * cvr * FSC);
   if (gaasfl)
@@ -4297,7 +4392,7 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   SurfSc_GAMMAn = 0.08;
 }
 
-/*scale the input: dopping concentration, potential, length*/
+/* scale the input: dopping concentration, potential, length */
 void MeshQuantities::scaling()
 {
 
@@ -4354,6 +4449,22 @@ int MeshQuantities::distance2index(double pos, vector<double> &cut)
   exit(1);
 }
 
+/**
+ * @brief Get the coordinate at x-, y- and z- direction
+ * 
+ * @arg index[0]
+ *      x begin
+ * @arg index[1]
+ *      x end
+ * @arg index[2]
+ *      y begin
+ * @arg index[3]
+ *      y end
+ * @arg index[4]
+ *      z begin
+ * @arg index[5]
+ *      z end
+ */
 void MeshQuantities::get_cube_range(ifstream &ifile, double *pos, int *index)
 {
   int i;
@@ -4366,6 +4477,15 @@ void MeshQuantities::get_cube_range(ifstream &ifile, double *pos, int *index)
   index[4] = distance2index(pos[4], lz);
   index[5] = distance2index(pos[5], lz);
 }
+
+
+/** 
+ * @brief 读取ldg.txt
+ *
+ * @param op[]
+ *        请根据不同case的关键词对照manual中的chapter2的内容
+ *        
+ */
 
 void MeshQuantities::read_device_file()
 {
@@ -4383,6 +4503,31 @@ void MeshQuantities::read_device_file()
   dir["FRONT"] = FRONT;
   dir["BACK"] = BACK;
 
+  /**
+   * @brief Each time a particle arrives at the surface of a cell,
+   *        the particle motion is interrupted 
+   *        and appropriate action is taken.
+   * @param motioncube 
+   *        空间坐标后第一个keyword代表cell的哪个边界，后一个关键词代表进行何种操作
+   *        例：motionplane  0 40 -31 -31 0 10  LEFT CATCH
+   *          指：在这个cell的LEFT边界实施CATCH操作
+   * @arg PASS
+   *      Particles step through the interface and resume propagation.
+   * @arg REFLECT
+   *      The particle is reflected at the interface and does not change the cell.
+   * @arg PERIOD
+   *      The particle is moved to the opposite surface of the cell.
+   * @arg SCATTOX
+   *      The particle hits the ideal Si/SiO2 interface. (does not change the cell)
+   * @arg CATCH
+   *      The particle is destoryed. (Used for contacts)
+   * @arg GENERATE
+   *      A copy of the original particle is generated 
+   *      and placed on the other side of the interface. (Only for contacts in Si) 
+   * @arg GENEREF
+   *      Similar to GENERATE, except that the original particle is applied with
+   *      REFLECT boundary condition.
+   */
   motion["PASS"] = PASS;
   motion["REFLECT"] = REFLECT;
   motion["SCATTOX"] = SCATTOX;
@@ -4439,21 +4584,29 @@ void MeshQuantities::read_device_file()
 
   while (para_type != "end")
   {
+    // 根据op的keyword确定type (18个case)
     cmd.type = op[para_type];
 
     switch (op[para_type])
     {
-    case 1:
+    // donor
+    case 1: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> tmp;
       cmd.dbl_param[0] = tmp;
       break;
-    case 2:
+    } 
+
+    // acceptor
+    case 2: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> tmp;
       cmd.dbl_param[0] = tmp;
       break;
-    case 3:
+    }
+
+    // region 
+    case 3: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> region_name;
       cmd.int_param[0] = region_type[region_name];
@@ -4467,13 +4620,19 @@ void MeshQuantities::read_device_file()
         cmd.int_param[1] = cmd.int_param[2] = 0;
       }
       break;
-    case 7:
+    }
+    
+    // motion plane
+    case 7: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> dir_name >> motion_name[0];
       cmd.int_param[0] = dir[dir_name];
       cmd.int_param[1] = motion[motion_name[0]];
       break;
-    case 4:
+    }
+    
+    // motion cube
+    case 4: {
       get_cube_range(ifile, cube_pos, cmd.range);
       for (int i = 0; i < 6; i++)
       {
@@ -4481,23 +4640,35 @@ void MeshQuantities::read_device_file()
         cmd.int_param[i] = motion[motion_name[i]];
       }
       break;
-    case 5:
+    }
+    
+    // attach contact
+    case 5: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> itmp;
       cmd.int_param[0] = itmp;
       break;
-    case 8:
+    }
+    
+    // parnumber
+    case 8: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> itmp;
       cmd.int_param[0] = itmp;
       ifile >> itmp;
       cmd.int_param[1] = itmp;
       break;
-    case 9:
+    }
+    
+    // default par number
+    case 9: {
       ifile >> default_electron_num;
       ifile >> default_hole_num;
       break;
-    case 6:
+    }
+    
+    // contact
+    case 6: {
       Contact cont;
       cont.reset();
       ifile >> cont.NumContactPlane >> cont.PhiMS;
@@ -4516,17 +4687,25 @@ void MeshQuantities::read_device_file()
       contact.push_back(cont);
 
       break;
-
-    case 12:
+    }
+      
+    // Scatter Area
+    case 12: {
       get_cube_range(ifile, cube_pos, cmd.range);
       ifile >> itmp;
       cmd.int_param[0] = itmp;
       break;
-    case 13:
+    }
+    
+    // VsVdVg
+    case 13: {
       ifile >> Vs >> Vd >> Vg >> phi_top;
       Eg = -Vg + phi_top - psi_si;
       break;
-    case 14:
+    }
+      
+    // vgrange
+    case 14: {
       ifile >> tmp >> tmp1 >> tmp2 >> tmp3;
       p_gbegin = distance2index(tmp, ly);
       p_gend = distance2index(tmp1, ly);
@@ -4539,7 +4718,10 @@ void MeshQuantities::read_device_file()
       else
         fermi_order = 0.5;
       break;
-    case 15:
+    }
+
+    // ep_parm  
+    case 15: {
       ifile >> qc_xratio >> qc_xtheta >> qc_yratio >> qc_ytheta >> qc_zratio >> qc_ztheta >> Eb;
 
       qc_xtheta /= 1e9 * spr0;
@@ -4547,7 +4729,10 @@ void MeshQuantities::read_device_file()
       qc_ztheta /= 1e9 * spr0;
       Eb /= pot0;
       break;
-    case 16:
+    }
+
+    // surfaces  
+    case 16: {
       ifile >> NumSurface;
       for (int i = 0; i < NumSurface; i++)
       {
@@ -4557,12 +4742,20 @@ void MeshQuantities::read_device_file()
         SurfaceDir[i] = surfdir;
       }
       break;
-    case 17:
+    }
+
+    // surface scatter range  
+    case 17: {
       get_cube_range(ifile, cube_pos, cmd.range);
       break;
-    case 18:
+    }
+
+    // quantum region  
+    case 18: {
       get_cube_range(ifile, cube_pos, cmd.range);
       break;
+    }
+      
     default:
       if (rank == 0)
         cout << "unrecognized option: " << para_type << endl;
@@ -4578,6 +4771,20 @@ void MeshQuantities::read_device_file()
 }
 
 /* load the mesh file */
+/**
+ * @brief load the mesh file
+ *    由于c_str()失效，因此请不要修改lgrid.txt的名字
+ *    lgrid.txt begins with an integer Nx, which each line
+ *    consisting of a single number specifying one coordinate.
+ *    y- and z- directions are specified in the same way.
+ * Note: lgrid.txt must end with a blank line.
+ *       The unit of all the coordinates is um.
+ * 
+ * @param p_numx, p_numy, p_numz
+ *        number of coordinates in x-, y- and z- directions
+ * @param c_numx, c_numy, c_numz
+ *        ? number of lines of adjacent grid in x-, y- and z- directions.
+ */
 void MeshQuantities::read_grid_file()
 {
 
@@ -4596,7 +4803,6 @@ void MeshQuantities::read_grid_file()
 
   ifile >> p_numx;
   cout << "p_numx: " << p_numx << endl;
-
   for (int i = 0; i < p_numx; ++i)
   {
     ifile >> pos;
@@ -4606,7 +4812,6 @@ void MeshQuantities::read_grid_file()
   }
 
   ifile >> p_numy;
-
   for (int i = 0; i < p_numy; ++i)
   {
     ifile >> pos;
@@ -4616,7 +4821,6 @@ void MeshQuantities::read_grid_file()
   }
 
   ifile >> p_numz;
-
   for (int i = 0; i < p_numz; ++i)
   {
     ifile >> pos;

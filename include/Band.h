@@ -5,6 +5,13 @@
 #include "Constant_GlobalVariable_MathFunction.h"
 #include "utils.h"
 
+/*
+ // *******************************************************
+ *  @brief 主要处理 能带结构 和 散射率 及相关操作
+ * 
+ // *******************************************************
+ */
+
 class Band
 {
     //    contains Name for each particle TYPE

@@ -12,6 +12,7 @@
 #define P_LINDEX(i,j,k,idx,tot) ((((j) - p_jbegin) * p_numxz + P_2DINDEX(i,k)) * (tot) + (idx))
 #define P_LINDEX_GHOST(i,j,k,idx,tot) ((((j) - p_jbegin_ghost) * p_numxz + P_2DINDEX(i,k)) * (tot) + (idx))
 
+// C: Cell, P: Point
 #define C_LINDEX_GHOST_ONE(i,j,k) C_LINDEX_GHOST(i,j,k,0,1)
 #define C_LINDEX_ONE(i,j,k) C_LINDEX(i,j,k,0,1)
 #define P_LINDEX_ONE(i,j,k) P_LINDEX(i,j,k,0,1)

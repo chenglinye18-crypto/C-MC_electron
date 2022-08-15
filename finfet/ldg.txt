@@ -1,1 +1,233 @@
-  default_par_number 15 4  region  -1 160  -32 32 -30 40 VACUUM   region  0 60 -32 32 0 10 SILICON   region 60 160 -32 32 -30 40 SILICON   region  -1 0 -32 32 -1 11 OXIDE   region  0 40 -32 32 -1 0 OXIDE   region  0 40 -32 32 10 11 OXIDE   region  40 60 -32 32 -30 0 OXIDE   region  40 60 -32 32 10 40 OXIDE  donor 0 160 -32 32 -30 40 0  donor  0 40 -32 -10 0 10  1e20   donor  0 40 10 32 0 10  1e20   acceptor 0 160 -32 32 -30 40 0   acceptor 0 40 -10 10 0 10 1e18  acceptor 40 60 -32 32 0 10 2e16  acceptor 60 160 -32 32 -30 40 2e16   motioncube  0 160 -32 32 -30 40 PASS   PASS   PASS   PASS  PASS PASS   motionplane  0 40 -31 -31 0 10  LEFT CATCH  motionplane  0 40 -31 -31 0 10 RIGHT GENERATE   motionplane  0 60 -32 -32 0 10 LEFT REFLECT  motionplane  0 40 31 31 0 10 RIGHT CATCH  motionplane  0 40 31 31 0 10 LEFT GENERATE  motionplane  0 60 32 32 0 10 RIGHT REFLECT    motionplane  60 160 -32 -32 -30 40 LEFT SCATTOX  motionplane  60 160 32 32 -30 40 RIGHT SCATTOX  motionplane 160 160 -32 32 -30 40 DOWN SCATTOX  motionplane  0 0 -32 32 0 10   UP SCATTOX  motionplane 0 60 -32 32 0 0 FRONT SCATTOX  motionplane 60 160 -32 32 -30 -30 FRONT SCATTOX  motionplane 0 60 -32 32 10 10 BACK SCATTOX  motionplane 60 160 -32 32 40 40 BACK SCATTOX  motionplane  60 60 -32 32 -30 0  UP SCATTOX  motionplane  60 60 -32 32 10 40 UP SCATTOX  motionplane  40 40 31 32 0 10 UP CATCH  motionplane  40 40 31 32 0 10 DOWN GENERATE  motionplane  40 40 -32 -31 0 10 UP CATCH  motionplane  40 40 -32 -31 0 10 DOWN GENERATE  attachcontact  0 40 -32 32 0 10 0     attachcontact  0 40 -32 -30 0 10 1      attachcontact  0 40 30 32 0 10 2    attachcontact  150 160 -32 32 -30 40 3  ScatterArea 0 40 -32 32 0 10 3	  motionplane  150 150 -32 32 -30 40 UP GENERATE  motionplane  150 150 -32 32 -30 40 DOWN CATCH   VsVdVg 0 0.6 0.5 4.25  vgrange -10 10 0 3    ep_parm 4 0.5 4 0.5 4 0.5 3.1   parnumber 40 60 -32 32 0 10 5 5  parnumber 60 160 -32 32 -30 40 5 5  surfaces 4    0 0 0    0 10 1    2 0 4    2 10 5  surface_scatter_range 0 40 -32 32 0 10   quantumRegion 0 60 -32 32 0 10  contact    1 0     0 40 -32 -32 0 10    0       contact     1 0    0 40 32 32 0 10    1  contact     1 0    160 160 -32 32 -30 40     0  contact    3 -0.46     -1 -1 -10 10 -1 11     -1 40 -10 10 -1 -1     -1 40 -10 10 11 11     1end
+  default_par_number 15 4
+
+  region  -1 160  -32 32 -30 40 VACUUM 
+
+
+  region  0 60 -32 32 0 10 SILICON 
+
+
+  region 60 160 -32 32 -30 40 SILICON 
+
+
+  region  -1 0 -32 32 -1 11 OXIDE 
+
+
+  region  0 40 -32 32 -1 0 OXIDE 
+
+
+
+  region  0 40 -32 32 10 11 OXIDE 
+
+
+
+  region  40 60 -32 32 -30 0 OXIDE 
+
+
+
+  region  40 60 -32 32 10 40 OXIDE
+
+
+
+  donor 0 160 -32 32 -30 40 0
+
+
+
+  donor  0 40 -32 -10 0 10  1e20 
+
+
+
+  donor  0 40 10 32 0 10  1e20 
+
+
+
+  acceptor 0 160 -32 32 -30 40 0 
+
+
+
+  acceptor 0 40 -10 10 0 10 1e18
+
+
+
+  acceptor 40 60 -32 32 0 10 2e16
+
+
+
+  acceptor 60 160 -32 32 -30 40 2e16
+ 
+
+  motioncube  0 160 -32 32 -30 40 PASS   PASS   PASS   PASS  PASS PASS 
+
+
+
+  motionplane  0 40 -31 -31 0 10  LEFT CATCH
+
+  motionplane  0 40 -31 -31 0 10 RIGHT GENERATE 
+
+  motionplane  0 60 -32 -32 0 10 LEFT REFLECT
+
+
+
+  motionplane  0 40 31 31 0 10 RIGHT CATCH
+
+  motionplane  0 40 31 31 0 10 LEFT GENERATE
+
+  motionplane  0 60 32 32 0 10 RIGHT REFLECT
+
+  
+
+  motionplane  60 160 -32 -32 -30 40 LEFT SCATTOX
+
+
+
+  motionplane  60 160 32 32 -30 40 RIGHT SCATTOX
+
+
+
+  motionplane 160 160 -32 32 -30 40 DOWN SCATTOX
+
+
+
+  motionplane  0 0 -32 32 0 10   UP SCATTOX
+
+
+
+  motionplane 0 60 -32 32 0 0 FRONT SCATTOX
+
+
+
+  motionplane 60 160 -32 32 -30 -30 FRONT SCATTOX
+
+
+
+  motionplane 0 60 -32 32 10 10 BACK SCATTOX
+
+
+
+  motionplane 60 160 -32 32 40 40 BACK SCATTOX
+
+
+
+  motionplane  60 60 -32 32 -30 0  UP SCATTOX
+
+
+
+  motionplane  60 60 -32 32 10 40 UP SCATTOX
+
+
+
+  motionplane  40 40 31 32 0 10 UP CATCH
+
+  motionplane  40 40 31 32 0 10 DOWN GENERATE
+
+  motionplane  40 40 -32 -31 0 10 UP CATCH
+
+  motionplane  40 40 -32 -31 0 10 DOWN GENERATE
+
+
+
+  attachcontact  0 40 -32 32 0 10 0 
+
+  
+
+  attachcontact  0 40 -32 -30 0 10 1  
+
+  
+
+  attachcontact  0 40 30 32 0 10 2  
+
+
+
+  attachcontact  150 160 -32 32 -30 40 3
+
+
+
+  ScatterArea 0 40 -32 32 0 10 3	
+
+
+
+  motionplane  150 150 -32 32 -30 40 UP GENERATE
+
+  motionplane  150 150 -32 32 -30 40 DOWN CATCH
+
+ 
+
+  VsVdVg 0 0.6 0.5 4.25
+
+  vgrange -10 10 0 3  
+
+
+
+  ep_parm 4 0.5 4 0.5 4 0.5 3.1
+
+ 
+
+  parnumber 40 60 -32 32 0 10 5 5
+
+  parnumber 60 160 -32 32 -30 40 5 5
+
+
+
+  surfaces 4
+
+    0 0 0
+
+    0 10 1
+
+    2 0 4
+
+    2 10 5
+
+
+
+  surface_scatter_range 0 40 -32 32 0 10 
+
+  quantumRegion 0 60 -32 32 0 10
+
+
+
+  contact
+
+    1 0 
+
+    0 40 -32 -32 0 10
+
+    0     
+
+
+
+  contact 
+
+    1 0
+
+    0 40 32 32 0 10
+
+    1
+
+
+
+  contact 
+
+    1 0
+
+    160 160 -32 32 -30 40 
+
+    0
+
+
+
+  contact
+
+    3 -0.46 
+
+    -1 -1 -10 10 -1 11 
+
+    -1 40 -10 10 -1 -1 
+
+    -1 40 -10 10 11 11 
+
+    1
+
+end
+
+
+

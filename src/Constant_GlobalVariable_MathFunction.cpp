@@ -2,7 +2,12 @@
 #include "Constant_GlobalVariable_MathFunction.h"
 #include <sstream>
 
-double sia0,sirho,siul,siut,a0pi,sieg;
+double sia0,
+        sirho,
+        siul,
+        siut,
+        a0pi,
+        sieg; // Si energy bandgap
 
 double T0,eV0,em0,hq0,ec0,rmom0,spr0,spk0,time0,velo0, Nc, Ncc, psi_si, phi_top, N_cur;
 

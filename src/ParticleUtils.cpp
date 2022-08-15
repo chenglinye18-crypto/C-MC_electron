@@ -709,6 +709,13 @@ void MeshQuantities::init_deep() {
     int size;
     ifstream ftpkloem;
 
+    /*
+     * k: const or k-space ?
+     * lo, to, la, ta: 光学波和声学波
+     * ab: absorption
+     * em: emission
+     */
+
     string filename;
     filename = bs_path + "/kloem.txt";
     ftpkloem.open(filename.c_str());
@@ -719,40 +726,32 @@ void MeshQuantities::init_deep() {
     
     ftpkloem.close();
       
-    /*
-     * k = const ? 
-     * ab: absorption
-     * em: emission
-     */
-
     //c	   kloab
     ifstream ftpkloab;
     filename = bs_path + "/kloab.txt";
     ftpkloab.open(filename.c_str());
     
-    for(it=0;it<110;it++)
-      for(ik=0;ik<201;ik++)
-        ftpkloab>>kloab[ik][it];
+    for(it = 0; it < 110; it++)
+      for(ik = 0;ik < 201; ik++)
+        ftpkloab >> kloab[ik][it];
     ftpkloab.close();
 
     //c	   ktoem
     ifstream ftpktoem;
     filename = bs_path + "/ktoem.txt" ;
     ftpktoem.open(filename.c_str());
-    for(it=0;it<160;it++)
-      for(ik=0;ik<51;ik++)
-        ftpktoem>>ktoem[ik][it];
+    for(it = 0; it < 160; it++)
+      for(ik = 0;ik < 51; ik++)
+        ftpktoem >> ktoem[ik][it];
     ftpktoem.close();
 
-
     //c	   ktoab
-
     ifstream ftpktoab;
     filename = bs_path + "/ktoab.txt";
     ftpktoab.open(filename.c_str());
-    for(it=0;it<150;it++)
-      for(ik=0;ik<51;ik++)
-        ftpktoab>>ktoab[ik][it];
+    for(it = 0; it < 150; it++)
+      for(ik = 0; ik < 51; ik++)
+        ftpktoab >> ktoab[ik][it];
     ftpktoab.close();
 
 
@@ -760,17 +759,17 @@ void MeshQuantities::init_deep() {
     ifstream ftpklaem;
     filename = bs_path + "/klaem.txt";
     ftpklaem.open(filename.c_str());
-    for(it=0;it<160;it++)
-      for(ik=0;ik<51;ik++)
-        ftpklaem>>klaem[ik][it];
+    for(it = 0; it < 160; it++)
+      for(ik  =0; ik < 51; ik++)
+        ftpklaem >> klaem[ik][it];
     ftpklaem.close();
       
     //c	   klaab
     ifstream ftpklaab;
     filename = bs_path + "/klaab.txt";
     ftpklaab.open(filename.c_str());
-    for(it=0;it<150;it++)
-      for(ik=0;ik<51;ik++)
+    for(it = 0; it < 150; it++)
+      for(ik = 0; ik < 51; ik++)
         ftpklaab >> klaab[ik][it];
     ftpklaab.close();
 }

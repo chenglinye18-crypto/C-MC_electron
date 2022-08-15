@@ -327,7 +327,7 @@ double find_int_val(double x) {
    for (i = p_ibegin; i <= p_iend; i ++)
       for (k = p_kbegin; k <= p_kend; k ++)
        for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j ++){
-       ofile << i << ' ' << j << ' ' << k << ' ' << p_data_value[P_LINDEX_ONE(i,j,k)] * scale << endl;
+          ofile << i << ' ' << j << ' ' << k << ' ' << p_data_value[P_LINDEX_ONE(i,j,k)] * scale << endl;
      }
 
    ofile.close();
