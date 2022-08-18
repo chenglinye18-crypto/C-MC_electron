@@ -307,7 +307,10 @@ double find_int_val(double x) {
   return int_val[index];
 }
 
-/*use the 3th parameter to scale the output data, scale = 1 by default */
+/**
+ * @brief use the 3th parameter to scale the output data, scale = 1 by default 
+ * 
+ **/
  void print_p_data(Epetra_Vector *p_data, string filename, double scale) {
    int i,j,k;
    MPI_Status status;
@@ -324,6 +327,16 @@ double find_int_val(double x) {
 
    p_data->ExtractView(&p_data_value);
 
+   /**
+    * @arg p_ibegin, p_kbegin, p_jbegin_nonoverlap
+    *      0
+    * @arg p_iend
+    *      c_numx: x方向上cell的数目
+    * @arg p_kend
+    *      c_numz: z方向上cell的数目
+    * @arg p_jend_nonoverlap
+    *      (c_numy - 1): y方向上的cell数目 - 1
+    */
    for (i = p_ibegin; i <= p_iend; i ++)
       for (k = p_kbegin; k <= p_kend; k ++)
        for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j ++){

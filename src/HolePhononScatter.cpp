@@ -6,70 +6,58 @@ void MeshQuantities::HolePhononScatter()
     //Purpose:   performs hole scattering
 
     //local variables
-    int iscat,ibold;
-    double drand,dscat;
-    double sca[MNScaHole*NBH],scasum;
+    int iscat, ibold;
+    double drand, dscat;
+    double sca[MNScaHole*NBH], scasum;
 
     //only holes are allowed in this routine
-    if(par_type!=PHOLE)
-    {
-
-        cout<<"error HSCTR: Wrong particle type";exit(0);
+    if(par_type != PHOLE){
+        cout<<"error HSCTR: Wrong particle type";
+        exit(0);
     }
     //save intial band
-    ibold=iband;
+    ibold = iband;
 
     //scattering statistics
-    
     //first check for fictious scattering
-    scasum=band.CALSCATTSUM(energy,iband);
-    if(scasum>band.gamtet[itet])
-    {
-
-        drand=Random()*scasum;
+    scasum = band.CALSCATTSUM(energy, iband);
+    if(scasum > band.gamtet[itet]){
+        drand = Random() * scasum;
     }
-    else
-    {
-        drand=Random()*band.gamtet[itet];
+    else{
+        drand = Random() * band.gamtet[itet];
     }
-    if(scasum<drand)
-    {
-        Flag_SelfScatter =true;
+    if(scasum < drand){
+        Flag_SelfScatter = true;
     }
-    else
-    {
-        Flag_SelfScatter =false;
+    else{
+        Flag_SelfScatter = false;
 
         //calculate scattering-rate for all prozesses at energy energy
         band.CALSCATTH(energy,sca,iband);
-
         //select the scattering prozess with AcRejection
-        iscat=-1;
-        dscat=0.0;
-        while(drand>dscat)
-        {
-
-            iscat=iscat+1;
-            if(iscat>=(band.scprh*band.nband[PHOLE]))
-            {
-
+        iscat = -1;
+        dscat = 0.0;
+        while(drand > dscat){
+            iscat = iscat + 1;
+            if(iscat >= (band.scprh*band.nband[PHOLE])){
                 Flag_SelfScatter =true;
                 break;
 
             }
-            dscat=dscat+sca[iscat];
+            dscat = dscat + sca[iscat];
         }
 
         //iscat is number of chosen scatt.pro.
-        if(!Flag_SelfScatter)
-            if(((iscat%band.scprh)+1)==band.scprh)
-        {
-          HSCATII(iscat);
+        if(!Flag_SelfScatter){
+            if(((iscat % band.scprh) + 1) == band.scprh){
+                HSCATII(iscat);
+            }
+            else{
+                HPSCAT(iscat);
+            }
         }
-        else
-        {
-            HPSCAT(iscat);
-        }
+            
     }
 
 }

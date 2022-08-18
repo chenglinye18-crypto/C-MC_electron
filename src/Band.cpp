@@ -3,17 +3,17 @@
 void Band::VELOTET(void)
 {
     //____Purpose : Calculate velocities within each tetrahedron
-    //ÀûÓÃ²¼ÀïÔ¨ÇøËÄÃæÌå½á¹¹¼ÆËã ËÙ¶È
+    //ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½Ô¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½á¹¹ï¿½ï¿½ï¿½ï¿½ ï¿½Ù¶ï¿½
     //____local variables
     int it,ibase;
     double m[4][4],ar[4],vv,mi[4][4],det;  //matrix,mi=inverse matrix,
 
-    //____loop over all tetrahedra   ËùÓÐµÄËÄÃæÌå¶¼»á×ßÒ»±é
+    //____loop over all tetrahedra   ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å¶¼ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
     
-    for(it=0;it<nt;it++)  // it=ËÄÃæÌå[1]
+    for(it=0;it<nt;it++)  // it=ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½[1]
     {
 
-        //      ..build matrix   xkk ykk zkk k¿Õ¼äÖÐµÄÏòÁ¿¸ñµã   £¨ÒÔÃ¿Ò»¸öÃæµÄÖÐÐÄÎª¸ñµãµÄÖµ£¿£©
+        //      ..build matrix   xkk ykk zkk kï¿½Õ¼ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½   ï¿½ï¿½ï¿½ï¿½Ã¿Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½
         m[1][1]=xkk[tet[1][it]]-xkk[tet[0][it]];
         m[1][2]=ykk[tet[1][it]]-ykk[tet[0][it]];
         m[1][3]=zkk[tet[1][it]]-zkk[tet[0][it]];
@@ -23,10 +23,10 @@ void Band::VELOTET(void)
         m[3][1]=xkk[tet[3][it]]-xkk[tet[0][it]];
         m[3][2]=ykk[tet[3][it]]-ykk[tet[0][it]];
         m[3][3]=zkk[tet[3][it]]-zkk[tet[0][it]];
-        //      ..determinat  ÐÐÁÐÊ½
+        //      ..determinat  ï¿½ï¿½ï¿½ï¿½Ê½
         //   [ x1,y1,z1]
         //   [ x2,y2,z2]
-        //   [ x3,y3,z3]   det ½øÐÐÐÐÁÐÊ½ÇóÖµ
+        //   [ x3,y3,z3]   det ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½Öµ
         det=m[1][1]*(m[2][2]*m[3][3]-m[3][2]*m[2][3])
             -m[1][2]*(m[2][1]*m[3][3]-m[3][1]*m[2][3])
             +m[1][3]*(m[2][1]*m[3][2]-m[3][1]*m[2][2]);
@@ -42,14 +42,14 @@ void Band::VELOTET(void)
         mi[2][3] =-(m[1][1]*m[2][3]-m[2][1]*m[1][3])/det;
         mi[3][3]=(m[1][1]*m[2][2]-m[2][1]*m[1][2])/det;
         
-        //k¿Õ¼äÖÐµÄ¸ñµãµÄÄÜÁ¿Öµ
+        //kï¿½Õ¼ï¿½ï¿½ÐµÄ¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
         
         ar[1]=eek[tet[1][it]]-eek[tet[0][it]];  
         ar[2]=eek[tet[2][it]]-eek[tet[0][it]];
         ar[3]=eek[tet[3][it]]-eek[tet[0][it]];
         // ..group velocity within tetrahedron
         ibase=4*it;              // 4*(it-1)  it changed
-        vt[ibase+0]=mi[1][1]*ar[1]+mi[1][2]*ar[2]+mi[1][3]*ar[3];  //ÕâÀïµÄmi[x][x]ÒÑ¾­ÊÇinverseÖ®ºóµÄÁË   ÈºËÙ¶ÈµÄ¶¨Òå ÃÉÌØ¿¨ÂåÄ£Äâ×ÊÁÏ
+        vt[ibase+0]=mi[1][1]*ar[1]+mi[1][2]*ar[2]+mi[1][3]*ar[3];  //ï¿½ï¿½ï¿½ï¿½ï¿½mi[x][x]ï¿½Ñ¾ï¿½ï¿½ï¿½inverseÖ®ï¿½ï¿½ï¿½ï¿½ï¿½   Èºï¿½Ù¶ÈµÄ¶ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ø¿ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         vt[ibase+1]=mi[2][1]*ar[1]+mi[2][2]*ar[2]+mi[2][3]*ar[3];
         vt[ibase+2]=mi[3][1]*ar[1]+mi[3][2]*ar[2]+mi[3][3]*ar[3];
         vt[ibase+3]=eek[tet[0][it]];
@@ -92,12 +92,12 @@ void Band::ZUDI(void)
         //DO itab=0,MTAB
         eps=energy[itab];
         //_______energy index of tetraheda list
-        ie=int(eps*dlist);       //+ 1//minim=0; dlist=Íø¸ñµÄ¼ä¾à
+        ie=int(eps*dlist);       //+ 1//minim=0; dlist=ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½
         if(ie<0)ie=0;            //1;
         if(ie>=MWLE)ie=MWLE-1;   //maxim=
         //_______cal. DOS for each tetrahedron
         //      ..loop over all tetraheda,which may contain the energy eps
-        for(ib=0;ib<nbt;ib++)   //nbt=×ÜµÄÄÜ´øÊý
+        for(ib=0;ib<nbt;ib++)   //nbt=ï¿½Üµï¿½ï¿½Ü´ï¿½ï¿½ï¿½
         {
             //DO ib=1,nbt
             for(itl=ptlist[ie][ib];itl<=ptlist[ie][ib]+ntlist[ie][ib]-1;itl++)
@@ -105,14 +105,14 @@ void Band::ZUDI(void)
                 // DO itl=
                 it=tlist[itl];
                 //         ..check if the tetrahedron contains the energy eps
-                if(eps>eek[tet[0][it]]&&eps<eek[tet[3][it]]) //ÕâÀïµÄÌõ¼þÎªÊ²Ã´ÕâÑùÐ´£¿
+                if(eps>eek[tet[0][it]]&&eps<eek[tet[3][it]]) //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÎªÊ²Ã´ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½
                 {
                     //             ..calculate area of intersection
                     area=FASTSURF(eps,it);
                     //             ..cal. density of states
                                  //**3
-                    dos[ibt[it]][itab]+=area/vgt[it]*48.0/(8.0*PI*PI*PI);  //ibtÖ¸µÄÊÇÃ¿¸öÄÜ´øµÄ±àºÅ £¬Ð¡³ß´çÃÉÌØ¿¨ÂåÄ£Äâ447Ò³ÓÐ½âÊÍ
-                }  //×îÖÕÇó³öÁË¶ÔÓ¦µÄÌ¬ÃÜ¶È
+                    dos[ibt[it]][itab]+=area/vgt[it]*48.0/(8.0*PI*PI*PI);  //ibtÖ¸ï¿½ï¿½ï¿½ï¿½Ã¿ï¿½ï¿½ï¿½Ü´ï¿½ï¿½Ä±ï¿½ï¿½ ï¿½ï¿½Ð¡ï¿½ß´ï¿½ï¿½ï¿½ï¿½Ø¿ï¿½ï¿½ï¿½Ä£ï¿½ï¿½447Ò³ï¿½Ð½ï¿½ï¿½ï¿½
+                }  //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¶ï¿½Ó¦ï¿½ï¿½Ì¬ï¿½Ü¶ï¿½
             }
         }
         //____end of energy-loop
@@ -156,7 +156,7 @@ void Band::ZUDI(void)
                     epsu=Min(epsu,eek[tet[2][it]]);
                     areal=FASTSURF(epsl,it);
                     areau=FASTSURF(epsu,it);
-                    for(is=0;is<64;is++)  //µü´ú±È½Ï64´Î²ÅÄÜ±È½Ï³öÀ´×îÖÕ½á¹û
+                    for(is=0;is<64;is++)  //ï¿½ï¿½ï¿½ï¿½ï¿½È½ï¿½64ï¿½Î²ï¿½ï¿½Ü±È½Ï³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ½ï¿½ï¿½
                     {
                         //DO is=1,64
                         epsm=0.50*(epsl+epsu);
@@ -1946,9 +1946,16 @@ double Band::HIIRATE(double ee)
     return rtnv;
 }
 
-
-double Band::CALSCATTSUM(double eed,int iinital)
-{
+/**
+ * @brief inerpolate the dos-rate between 
+ *        two tab-values
+ * 
+ * @param eed 
+ *        energy of actual electron
+ * @param iinital 
+ * @return * double 
+ */
+double Band::CALSCATTSUM(double eed,int iinital){
 
     //____Purpose : interpolate the dos-rate between
     //             two tab-values
@@ -1957,24 +1964,25 @@ double Band::CALSCATTSUM(double eed,int iinital)
 
     int itab;
     double intp,rtnv;
+    //cout << "eed: " << eed << endl;
 
     //____smallest allowed energy
-    if(eed<=0.0)
-    {
-        rtnv=sumscatt[0][iinital];
+    if(eed <= 0.0){
+        rtnv = sumscatt[0][iinital];
         //____largest allowed energy
     }
-    else if(eed>=emax)
-    {
-        rtnv=sumscatt[MTAB][iinital];
+    else if(eed >= emax){
+        rtnv = sumscatt[MTAB][iinital];
     }
-    else
-    {
-        itab=(int)(eed/dtable);
-        intp=(eed-energy[itab])/(energy[itab+1]-energy[itab]);
-        rtnv=sumscatt[itab][iinital]+intp
-            *(sumscatt[itab+1][iinital]
-            -sumscatt[itab][iinital]);
+    else{
+        
+        itab = (int)(eed / dtable);
+        
+        intp = (eed - energy[itab])/(energy[itab + 1] - energy[itab]);
+        
+        rtnv = sumscatt[itab][iinital] + intp * (sumscatt[itab + 1][iinital]
+               - sumscatt[itab][iinital]);
+        
     }                            //endif
 
     //____End of CALSCATTSUM

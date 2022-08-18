@@ -1,10 +1,11 @@
 
 #include "mcmodel.h"
 
-
-void MeshQuantities::ElectronPhononScatter()
-{
-    //Purpose:   performs electron scattering
+/**
+ * @brief Performs electron scattering
+ * 
+ */
+void MeshQuantities::ElectronPhononScatter(){
 
     //local variables
     int iscat,ibold;
@@ -12,81 +13,64 @@ void MeshQuantities::ElectronPhononScatter()
     double sca[MNScaEle*NBE],scasum;
 
     //only electrons are allowed in this routine
-    if(par_type!=PELEC)
+    if(par_type != PELEC)
     {
 
     }
     //save inital band
-    ibold=iband;
+    ibold = iband;
 
     //scattering statistics
         
     //first check for fictious scattering
-    scasum=band.CALSCATTSUM(energy,iband);
-
-    if(scasum>band.gamtet[itet])
-    {
-        drand=Random()*scasum;
+    scasum = band.CALSCATTSUM(energy,iband);
+    if(scasum > band.gamtet[itet]){
+        drand = Random() * scasum;
     }
-    else
-    {
-        drand=Random()*band.gamtet[itet];
+    else{
+        drand = Random() * band.gamtet[itet];
     }
 
-    if(scasum<drand)
-    {
-        Flag_SelfScatter=true;
+    if(scasum < drand){
+        Flag_SelfScatter = true;
     }
-    else
-    {
-        Flag_SelfScatter=false;
+    else{
+        Flag_SelfScatter = false;
 
         //calculate scattering-rate for all processes at energy energy
-        band.CALSCATTE(energy,sca,iband);
+        band.CALSCATTE(energy, sca, iband);
 
         //select the scattering process with AcRejection
-        iscat=-1;
-        dscat=0.0;
+        iscat = -1;
+        dscat = 0.0;
 
-        while(drand>dscat)
-        {
-            iscat=iscat+1;
-            if(iscat>=(band.scpre*band.nband[PELEC]))
-            {
-
-                Flag_SelfScatter=true;
+        while(drand > dscat){
+            iscat = iscat + 1;
+            if(iscat >= (band.scpre * band.nband[PELEC])){
+                Flag_SelfScatter = true;
                 break;
-
             }
-            dscat=dscat+sca[iscat];
-
+            dscat = dscat + sca[iscat];
         }
 
-        if(!Flag_SelfScatter)
-        {
+        if(!Flag_SelfScatter){
             //iscat is number of chosen scatt.pro.
-
-            if(((iscat%band.scpre)+1)==band.scpre)
-            {
-              ESCATII(iscat);
+            if(((iscat % band.scpre) + 1) == band.scpre){
+                ESCATII(iscat);
             }
             //Phonon
             else
             {
-                if(band.jacophfl)
-                {
+                if(band.jacophfl){
                     EPSCAT(iscat);
                 }
-                else
-                {
-                    if(band.fiscphfl)
-                    {
+                else{
+                    if(band.fiscphfl){
                         EFPSCAT(iscat);
                     }
-                    else
-                    {
-
-                        cout<<"error Warning: ESCTR: Specify phonon type";exit(0);
+                    else{
+                        cout<<"error Warning: ESCTR: Specify phonon type";
+                        exit(0);
                     }
                 }
             }

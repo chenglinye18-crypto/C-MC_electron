@@ -44,6 +44,7 @@
 
 #define NODE_SILICON (1)
 #define NODE_OXIDE (2)
+// <<: 位运算，左移
 #define NODE_UP_BC (1 << 2)
 #define NODE_DOWN_BC (1 << 3)
 #define NODE_FRONT_BC (1 << 4)

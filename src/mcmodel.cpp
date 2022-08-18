@@ -144,13 +144,13 @@ void MeshQuantities::read_potential()
 
   fin = fopen("./input_pot", "r");
 
+  /* pot points to p_poisson_pot */
   p_poisson_pot->ExtractView(&pot);
 
   do
   {
     flag = fscanf(fin, "%d %d %d", &i, &j, &k);
-    if (flag == 3)
-    {
+    if (flag == 3){
       fscanf(fin, "%lf", &tmp);
       if ((j >= p_jbegin_nonoverlap) && (j <= p_jend_nonoverlap))
         pot[P_LINDEX_ONE(i, j, k)] = tmp / pot0;
@@ -313,9 +313,9 @@ void MeshQuantities::compute_fermi_level(bool pot_based, Epetra_Vector *p_pot_ve
     p_par_charge->ExtractView(&p_par_charge_value);
     for (i = p_tox; i <= p_box; i++)
       for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++)
-        if (NOT_GHOST_BC(j))
-        {
-          fermi_val[P_LINDEX_ONE(i, j, k)] = anti_dummy(p_par_charge_value[P_LINDEX_ONE(i, j, k)] * conc0 / Nc, fermi_order) + pot[P_LINDEX_ONE(i, j, k)];
+        if (NOT_GHOST_BC(j)){
+          fermi_val[P_LINDEX_ONE(i, j, k)] = anti_dummy(p_par_charge_value[P_LINDEX_ONE(i, j, k)] 
+                                              * conc0 / Nc, fermi_order) + pot[P_LINDEX_ONE(i, j, k)];
         }
   }
   /*
@@ -494,12 +494,13 @@ double MeshQuantities::Ec_diff()
 void MeshQuantities::run()
 {
 
-  if (Flag_restart) // run from the previous simulation result
+  // run from the previous simulation result
+  if (Flag_restart) 
     step = restart_step;
   else
     step = 0;
 
-  /*output for integration*/
+  // output for integration
   print_p_data(p_volume, "pvolume", conc0);
 
   flag_heat = false;
@@ -517,6 +518,8 @@ void MeshQuantities::run()
 
     /* self-consistent iteration for one step */
     density();
+
+    cout << " --- after density() --- " << endl; 
 
     /* this should be impossible , but still check it */
     if (par_num == 0)
@@ -1211,7 +1214,7 @@ void MeshQuantities::statistic()
   stat_pot->ExtractView(&stat_pot_val);
   stat_qc_pot->ExtractView(&stat_qc_pot_val);
 
-  /*the value get from the poisson solver, without quantum correction*/
+  // the value get from the poisson solver, without quantum correction
   p_poisson_pot_saved->ExtractView(&pot);
   p_poisson_pot->ExtractView(&qc_pot);
 
@@ -1221,11 +1224,10 @@ void MeshQuantities::statistic()
   p_electron_heat->ExtractView(&e_heat);
   p_hole_heat->ExtractView(&h_heat);
 
-  /*get the summation for each node */
+  // get the summation for each node 
   for (i = p_ibegin; i <= p_iend; i++)
     for (k = p_kbegin; k <= p_kend; k++)
-      for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++)
-      {
+      for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++){
         stat_pot_val[P_LINDEX_ONE(i, j, k)] += pot[P_LINDEX_ONE(i, j, k)];
         stat_qc_pot_val[P_LINDEX_ONE(i, j, k)] += qc_pot[P_LINDEX_ONE(i, j, k)];
         stat_e_heat_val[P_LINDEX_ONE(i, j, k)] += e_heat[P_LINDEX_ONE_GHOST(i, j, k)];
@@ -1250,7 +1252,7 @@ void MeshQuantities::statistic()
 
   c_volume->ExtractView(&cvol);
 
-  /*loop for each cell */
+  /* loop for each cell */
   for (i = c_ibegin; i <= c_iend; i++)
 
     for (k = c_kbegin; k <= c_kend; k++)
@@ -1532,7 +1534,6 @@ void MeshQuantities::update_particle()
 
             if ((loop == 1) || (par_iter->flag == 0))
             {
-
               particle_fly();
 
               if ((par_iter->i >= 0) && (par_iter->flag == 0))
@@ -1603,10 +1604,9 @@ void MeshQuantities::fill_ghost_cell()
     for (i = c_ibegin; i <= c_iend; i++)
       for (k = c_kbegin; k <= c_kend; k++)
         for (par_iter = par_list[C_LINDEX_GHOST_ONE(i, c_jend, k)].begin();
-             par_iter != par_list[C_LINDEX_GHOST_ONE(i, c_jend, k)].end(); par_iter++)
-        {
-          cp_to_buf(&dbl_snd_buf[PAR_DBL_NUM * l], &int_snd_buf[PAR_INT_NUM * l], *par_iter);
-          l++;
+             par_iter != par_list[C_LINDEX_GHOST_ONE(i, c_jend, k)].end(); par_iter++){
+                cp_to_buf(&dbl_snd_buf[PAR_DBL_NUM * l], &int_snd_buf[PAR_INT_NUM * l], *par_iter);
+                l++;
         }
     MPI_Isend(dbl_snd_buf, PAR_DBL_NUM * par_send_num, MPI_DOUBLE, rank + 1, 1, MPI_COMM_WORLD, &request);
     MPI_Isend(int_snd_buf, PAR_INT_NUM * par_send_num, MPI_INT, rank + 1, 2, MPI_COMM_WORLD, &request_int);
@@ -1648,7 +1648,7 @@ void MeshQuantities::fill_ghost_cell()
   }
 }
 /* -------------------------------------------------------------------------- */
-/** @brief 清楚 ghost 单元格中的粒子.
+/** @brief 清除 ghost 单元格中的粒子.
  */
 /* ---------------------------------------------------------------------------- */
 
@@ -1934,7 +1934,7 @@ void MeshQuantities::dump_par_info()
 
 void MeshQuantities::dump_par_info(Particle &par)
 {
-  cout << " *********dump particle********" << endl
+  cout << " ********* dump particle ********" << endl
        << " particle id : " << par.par_id << endl
        << " seed        : " << par.seed << endl
        << " cell index  : " << par.i << ' ' << par.j << ' ' << par.k << endl
@@ -1960,7 +1960,7 @@ void MeshQuantities::dump_par_info(Particle &par)
 
 void MeshQuantities::particle_fly()
 {
-
+  cout << "----- particle is flying.. -----" << endl;
   Flag_Catch = false;
 
   bool Flag_GetTetTime = true;
@@ -1981,25 +1981,28 @@ void MeshQuantities::particle_fly()
 
   DA = (*c_da)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
 
-  if (par_type == 0)
-  {
-    Ex = ChargeSign[par_type] * (*c_field_x)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
+  // electron 
+  if (par_type == 0) {
 
+    Ex = ChargeSign[par_type] * (*c_field_x)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
+  
     Ey = ChargeSign[par_type] * (*c_field_y)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
 
     Ez = ChargeSign[par_type] * (*c_field_z)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
   }
-  else
-  {
+  // hole
+  else{
     Ex = ChargeSign[par_type] * (*c_h_field_x)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
 
     Ey = ChargeSign[par_type] * (*c_h_field_y)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
 
     Ez = ChargeSign[par_type] * (*c_h_field_z)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
+  
   }
 
   iband = band.ibt[itet];
 
+  // get particle's velocity
   GetV();
 
   int loop = 0;
@@ -2010,57 +2013,51 @@ void MeshQuantities::particle_fly()
 
   while (left_time > 0)
   {
-    /*get particle's velocity */
+    /* get particle's velocity */
     GetV();
     loop++;
-    /*simulate until particle used up LeftTime */
+    /* simulate until particle used up LeftTime */
 
-    if (Flag_GetTetTime)
-    {
-      /*time until particle changes tetrahedron in k space */
+    if (Flag_GetTetTime){
+      /* time until particle changes tetrahedron in k space */
       TetTf = TetTime();
       Flag_GetTetTime = false;
     }
 
-    if (Flag_GetCellTime)
-    {
+    if (Flag_GetCellTime){
       /* time until next quadrant change in real space */
       CellTf = CellTime();
       Flag_GetCellTime = false;
     }
 
-    if (Flag_GetPhScTime)
-    {
+    if (Flag_GetPhScTime){
       phrnl = -log(Random());
       Flag_GetPhScTime = false;
     }
-    /* time until next phonon scattering process (variable Gamma scheme)
+    /* 
+     * time until next phonon scattering process (variable Gamma scheme)
        TODO: why compute it every time?
-    */
+     */
     PhScTf = phrnl / band.gamtet[itet];
 
-    /*time until next impurity scattering process (variable Gamma scheme);
-        impurity scattering only in the lowest conduction band*/
-    if (iband == band.bandof[PELEC])
-    {
-      if (Flag_GetImpScTime)
-      {
+    /* time until next impurity scattering process (variable Gamma scheme);
+        impurity scattering only in the lowest conduction band */
+    if (iband == band.bandof[PELEC]){
+      if (Flag_GetImpScTime){
         imprnl = -log(Random());
         Flag_GetImpScTime = false;
       }
+
       ImpScGamma = GetImpScGamma();
       ImpScTf = imprnl / ImpScGamma;
     }
-    else
-    {
+    else{
       ImpScTf = 2 * dt;
       ImpScGamma = 1.0 / scrt0;
     }
     /* surface scattering time */
-    if ((Flag_SurfaceScatter) && ((*c_InSurfRegion)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)]))
-    {
-      if (Flag_GetSurfScTime)
-      {
+    if ((Flag_SurfaceScatter) && ((*c_InSurfRegion)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)])){
+      if (Flag_GetSurfScTime){
         ssnl = -log(Random());
         Flag_GetSurfScTime = false;
       }
@@ -2071,23 +2068,28 @@ void MeshQuantities::particle_fly()
       else
         SurfScTf = 2 * dt;
     }
-    else
-    {
+    else{
       SurfScTf = 2 * dt;
     }
 
     old_flag = flag;
 
-    /* shortest time as free flight time */
+    /** 
+     * @brief shortest time as free flight time 
+     * @arg TetTf - 飞出k空间网格时间
+     * @arg CellTf - 飞出所在cell的时间
+     * @arg PhScTf - 下一次声子散射发生的时间
+     * @arg ImpScTf - 下一次电离杂质散射发生的时间
+     * @arg SurfScTf - 下一次表面散射发生的时间
+     */
     Tf = Min(TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, left_time, flag);
 
     //    ofile << "loop = " << loop << ' '<< TetTf << ' ' << CellTf << ' ' << PhScTf << ' ' << SurfScTf << ' ' << flag << endl;
 
     // dump_par_info();
 
-    /*this should not happen, still leave it here */
-    if (Tf < MY_ZERO)
-    {
+    /* this should not happen, still leave it here */
+    if (Tf < MY_ZERO){
       cout << "Tf < 0 " << old_flag << ' ' << old_flag_getTetTime << ' ' << loop << endl;
       Flag_Catch = true;
       break;
@@ -2097,12 +2099,12 @@ void MeshQuantities::particle_fly()
       dump_time_info();
       dump_par_info();
       dump_cell_info(icell, jcell, kcell);
+
       exit(1);
       Flag_Catch = true;
     }
 
-    /*adjust free flight times */
-
+    /* adjust free flight times */
     TetTf -= Tf;
     CellTf -= Tf;
     PhScTf -= Tf;
@@ -2110,13 +2112,15 @@ void MeshQuantities::particle_fly()
     SurfScTf -= Tf;
     left_time -= Tf;
 
-    /*variable gamma schemes
-      TODO: check it!
-    */
+    /*
+     * variable gamma schemes
+     * TODO: check it!
+     */
     phrnl -= band.gamtet[itet] * Tf;
-    /* when particle is not precessed with Imp/SurfSc, imprnl/ssnl is useless, and can be any value(><=0)
-       TODO: check
-      */
+    /* 
+     * when particle is not precessed with Imp/SurfSc, imprnl/ssnl is useless, and can be any value(><=0)
+     * TODO: check
+     */
     imprnl -= ImpScGamma * Tf;
     ssnl -= SurfScGamma * Tf;
 
@@ -2124,119 +2128,132 @@ void MeshQuantities::particle_fly()
     kx += Ex * Tf;
     ky += Ey * Tf;
     kz += Ez * Tf;
-    /*update energy*/
+
+    /* update energy */
     energy += (vx * Ex + vy * Ey + vz * Ez) * Tf;
+    // cout << "Particle flight times: " << Tf << endl;
+    // cout << "vx: " << vx << endl
+    //     << "Ex: " << Ex << endl
+    //     << "vy: " << vy << endl
+    //     << "Ey: " << Ey << endl
+    //     << "vz: " << vz << endl
+    //     << "Ez: " << Ez << endl;
+    // cout << "particle energy: " << energy << endl;
 
     x += vx * Tf;
     y += vy * Tf;
     z += vz * Tf;
 
-    if (energy < 0)
-    {
+    if (energy < 0){
       dump_time_info();
       dump_par_info();
       dump_cell_info(icell, jcell, kcell);
-      /*eliminate this particle */
+
+      /* eliminate this particle */
       Flag_Catch = true;
       // exit(1);
       break;
     }
+  
+    /* update r-vektor */
+    switch (flag){
+      /* 1 for tetrahedron changes*/
+      case 1:{
+        /* process tetrahedron change evenet*/
+        HitTet();
+        /*set flag to true because we need recalculate time */
+        Flag_GetTetTime = true;
+        Flag_GetCellTime = true;
 
-    /*update r-vektor */
-
-    switch (flag)
-    {
-      /*1 for tetrahedron changes*/
-    case 1:
-    {
-      /*process tetrahedron change evenet*/
-      HitTet();
-      /*set flag to true because we need recalculate time */
-      Flag_GetTetTime = true;
-      Flag_GetCellTime = true;
-      break;
-    }
+        break;
+      }
       /* cell changes */
-    case 2:
-    {
-      /*process cell change evenet */
-      if (HitCell())
-      {
-        Flag_GetTetTime = true;
-        Flag_GetCellTime = true;
-      }
-      else
-      {
-        trace_back();
-        fly_too_far = true;
-      }
+      case 2:{
+        /*process cell change evenet */
+        if (HitCell())
+        {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+        }
+        else
+        {
+          trace_back();
+          fly_too_far = true;
+        }
 
-      break;
-    }
+
+        break;
+      }
       /* phonon scattering */
-    case 3:
-    {
-      /* increase number of phonon scattering*/
-      /*process event corresponds to particle */
-      if (par_type == PELEC)
-        ElectronPhononScatter();
-      else if (par_type == PHOLE)
-        HolePhononScatter();
-      /// else// if (ParType==POXEL) OxideElectronPhononScatter();
-      /*TODO: check */
-      if (!Flag_SelfScatter)
-      {
-        Flag_GetTetTime = true;
-        Flag_GetCellTime = true;
-        sttt.phononScatter++;
+      case 3:{
+        /* increase number of phonon scattering*/
+        /*process event corresponds to particle */
+        if (par_type == PELEC){
+          cout << "Hello Electron" << endl;
+          ElectronPhononScatter();
+        }
+        else if (par_type == PHOLE){
+          cout << "Hello Holes" << endl;
+          HolePhononScatter();
+        }
+          
+        /// else// if (ParType==POXEL) OxideElectronPhononScatter();
+        /*TODO: check */
+        if (!Flag_SelfScatter)
+        {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+          sttt.phononScatter++;
+        }
+        Flag_GetPhScTime = true;
+
+        break;
       }
-      Flag_GetPhScTime = true;
-      break;
-    }
       /*impurity scattering*/
-    case 4:
-    {
-
-      OutPar(&old_par);
-
-      /* increase number of impurity scattering */
-      if (par_type == PELEC)
-        ElectronImpurityScatter();
-
-      OutPar(&new_par);
-
-      old_flag_getTetTime = Flag_SelfScatter;
-
-      if (!Flag_SelfScatter)
+      case 4:
       {
-        Flag_GetTetTime = true;
-        Flag_GetCellTime = true;
-        sttt.impurityScatter++;
+
+        OutPar(&old_par);
+
+        /* increase number of impurity scattering */
+        if (par_type == PELEC)
+          ElectronImpurityScatter();
+
+        OutPar(&new_par);
+
+        old_flag_getTetTime = Flag_SelfScatter;
+
+        if (!Flag_SelfScatter)
+        {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+          sttt.impurityScatter++;
+        }
+        Flag_GetImpScTime = true;
+
+        break;
       }
-      Flag_GetImpScTime = true;
-      break;
-    }
       /* surface scattering */
-    case 5:
-    {
-      /* process surface scattering event */
-      ParticleSurfaceScatter();
-      /*TODO */
-      if (!Flag_SelfScatter)
+      case 5:
       {
-        Flag_GetTetTime = true;
-        Flag_GetCellTime = true;
+        /* process surface scattering event */
+        ParticleSurfaceScatter();
+        /*TODO */
+        if (!Flag_SelfScatter)
+        {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+        }
+        Flag_GetSurfScTime = true;
+        break;
       }
-      Flag_GetSurfScTime = true;
-      break;
-    }
     } // end of switch
-    /*stop while loop if particle is already caught */
+    /* stop while loop if particle is already caught */
     if (fly_too_far || Flag_Catch)
       break;
   }
 
-  /*mark if caught*/
+  /* mark if caught*/
   if (Flag_Catch)
   {
     par_iter->i = -9999;
@@ -2260,6 +2277,7 @@ void MeshQuantities::particle_fly()
     err_message(TOO_MANY_LOOPS, "particle fly");
     dump_par_info();
   }
+  cout << "End" << endl;
   // ofile.close();
 }
 
@@ -2503,8 +2521,7 @@ void MeshQuantities::quantumPotential()
   {
     for (i = p_ibegin; i <= p_iend; i++)
       for (k = p_kbegin; k <= p_kend; k++)
-        if (pmat[P_QCLINDEX(i, j, k)] & NODE_QUANTUM)
-        {
+        if (pmat[P_QCLINDEX(i, j, k)] & NODE_QUANTUM){
           pot[P_LINDEX_ONE(i, j, k)] = effective_potential(i, j, k);
         }
   }
@@ -2852,7 +2869,6 @@ void MeshQuantities::compute_cell_charge()
 
 void MeshQuantities::linear_poisson_solver()
 {
-
   p_poisson_pot->PutScalar(0);
 
   compute_rhs();
@@ -2921,17 +2937,21 @@ void MeshQuantities::pot2field(int flag, Epetra_Vector *p_pot_vec)
 
   p_pot->ExtractView(&pot);
 
-  /*compute the field value for each cell on the local proceess*/
+  /* compute the field value for each cell on the local proceess */
   for (i = c_ibegin; i <= c_iend; i++)
     for (k = c_kbegin; k <= c_kend; k++)
       for (j = c_jbegin; j <= c_jend; j++)
-        if ((!flag) || (quantumRegion[C_LINDEX_ONE(i, j, k)]))
+        if ((!flag) || (quantumRegion[C_LINDEX_ONE(i, j, k)])){
         //       if (NOT_GHOST_CELL(j))
-        {
           field_x[C_LINDEX_ONE(i, j, k)] = -(pot[P_LINDEX_ONE(i + 1, j, k)] - pot[P_LINDEX_ONE(i, j, k)] + pot[P_LINDEX_ONE(i + 1, j + 1, k)] - pot[P_LINDEX_ONE(i, j + 1, k)] + pot[P_LINDEX_ONE(i + 1, j, k + 1)] - pot[P_LINDEX_ONE(i, j, k + 1)] + pot[P_LINDEX_ONE(i + 1, j + 1, k + 1)] - pot[P_LINDEX_ONE(i, j + 1, k + 1)]) / (4.0 * dx[i]);
-
           field_y[C_LINDEX_ONE(i, j, k)] = -(pot[P_LINDEX_ONE(i, j + 1, k)] + pot[P_LINDEX_ONE(i + 1, j + 1, k)] + pot[P_LINDEX_ONE(i, j + 1, k + 1)] + pot[P_LINDEX_ONE(i + 1, j + 1, k + 1)] - pot[P_LINDEX_ONE(i, j, k)] - pot[P_LINDEX_ONE(i + 1, j, k)] - pot[P_LINDEX_ONE(i, j, k + 1)] - pot[P_LINDEX_ONE(i + 1, j, k + 1)]) / (4.0 * dy[j]);
           field_z[C_LINDEX_ONE(i, j, k)] = -(pot[P_LINDEX_ONE(i, j, k + 1)] + pot[P_LINDEX_ONE(i + 1, j, k + 1)] + pot[P_LINDEX_ONE(i, j + 1, k + 1)] + pot[P_LINDEX_ONE(i + 1, j + 1, k + 1)] - pot[P_LINDEX_ONE(i, j, k)] - pot[P_LINDEX_ONE(i + 1, j, k)] - pot[P_LINDEX_ONE(i, j + 1, k)] - pot[P_LINDEX_ONE(i + 1, j + 1, k)]) / (4.0 * dz[k]);
+
+          //debug
+          cout << "i: " << i << endl
+             << "j: "<< j << endl
+             << "k: " << k << endl
+             << "field_x[" << C_LINDEX_ONE(i, j, k) << "]: " << field_x[C_LINDEX_ONE(i, j, k)] << endl << endl;
         }
 
   /*
@@ -2951,7 +2971,7 @@ void MeshQuantities::pot2field(int flag, Epetra_Vector *p_pot_vec)
   field_z[C_LINDEX_ONE(i,c_jend,k)] = field_z[C_LINDEX_ONE(i,c_jend - 1, k)];
       }
       */
-  /* field values in the ghost cells are aslo needed while simulating
+  /* field values in the ghost cells are also needed while simulating
    * particles , import them */
   c_field_x->Import(*c_work1, *c_Importer, Insert);
   c_field_y->Import(*c_work2, *c_Importer, Insert);
@@ -2998,12 +3018,15 @@ void MeshQuantities::compute_rhs()
   for (i = p_ibegin; i <= p_iend; i++)
     for (k = p_kbegin; k <= p_kend; k++)
       for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++)
-        if (fabs(p_par_charge_value[P_LINDEX_ONE(i, j, k)]) > 0)
-        {
+        if (fabs(p_par_charge_value[P_LINDEX_ONE(i, j, k)]) > 0){
           /* contain two parts, particle charge & dop, dop is fixed at
             beginning.*/
           p_rhs_value[P_LINDEX_ONE(i, j, k)] =
               p_par_charge_value[P_LINDEX_ONE(i, j, k)] * vol_val[P_LINDEX_ONE(i, j, k)] + p_dop_value[P_LINDEX_ONE(i, j, k)];
+          cout << "--- Computing RHS Pos1 ---" << endl;
+          cout << "p_par_charge_value[" << P_LINDEX_ONE(i, j, k) << "]: " << p_par_charge_value[P_LINDEX_ONE(i, j, k)] << endl
+              << "vol_val[" << P_LINDEX_ONE(i, j, k) << "]: " << vol_val[P_LINDEX_ONE(i, j, k)] << endl
+              << "p_dop_value[" << P_LINDEX_ONE(i, j, k) << "]: " << p_dop_value[P_LINDEX_ONE(i, j, k)] << endl;
         }
 
   for (icont = 0; icont < contact.size(); icont++)
@@ -3011,9 +3034,13 @@ void MeshQuantities::compute_rhs()
       for (i = contact[icont].BeginI[iplane]; i <= contact[icont].EndI[iplane]; i++)
         for (k = contact[icont].BeginK[iplane]; k <= contact[icont].EndK[iplane]; k++)
           for (j = contact[icont].BeginJ[iplane]; j <= contact[icont].EndJ[iplane]; j++)
-            if ((j >= p_jbegin_nonoverlap) && (j <= p_jend_nonoverlap))
-            {
-              p_rhs_value[P_LINDEX_ONE(i, j, k)] = contact[icont].CurrentVapp + vadd_val[P_LINDEX_ONE(i, j, k)] + contact[icont].PhiMS;
+            if ((j >= p_jbegin_nonoverlap) && (j <= p_jend_nonoverlap)){
+              p_rhs_value[P_LINDEX_ONE(i, j, k)] = 
+                contact[icont].CurrentVapp + vadd_val[P_LINDEX_ONE(i, j, k)] + contact[icont].PhiMS;
+              cout << "--- Computing RHS Pos2 ---" << endl;
+              cout << "contact[" << icont << "].CurrentVapp: " << contact[icont].CurrentVapp << endl
+                  << "vadd_val[" << P_LINDEX_ONE(i, j, k) << "]: " << vadd_val[P_LINDEX_ONE(i, j, k)] << endl
+                  << "contact[" << icont << "].PhiMS: " << contact[icont].PhiMS << endl;
             }
 }
 
@@ -3766,6 +3793,9 @@ void MeshQuantities::init_epetra_map_vector()
 
   p_jend_nonoverlap = p_jend - 1;
 
+  cout << "p_jbegin_nonoverlap: " << p_jbegin_nonoverlap << endl
+      << "p_jend_nonoverlap: " << p_jend_nonoverlap << endl;
+
   if (p_jend == p_numy - 1)
   {
     p_num_local_nonoverlap_y++;
@@ -3786,7 +3816,9 @@ void MeshQuantities::init_epetra_map_vector()
   p_kend = c_numz;
   p_ksize = p_numz;
 
+  // xz面上的cell总数
   c_numxz = c_numx * c_numz;
+  // xz面上的point总数
   p_numxz = p_numx * p_numz;
 
   c_num_local = c_num_local_y * c_numxz;
@@ -4192,12 +4224,9 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   /**
    * @brief initialize bulk parameters
    * 
-   * @param sia0
-   *        lattice constant
-   * @param sirh0
-   *        mass density
-   * @param siul, siut
-   *        sound velocity(l: longitudinal, t: transverse )
+   * @arg sia0       - lattice constant
+   * @arg sirh0      - mass density
+   * @arg siul, siut - sound velocity(l: longitudinal, t: transverse )
    */
   if (gaasfl)
   {
@@ -4224,10 +4253,8 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
    * @brief get the material coefficients
    *        and normalize them
    * 
-   * @param T0 
-   *        Temperature [K]
-   * @param Tn
-   *        normalized Temperature
+   * @arg T0 - Temperature [K]
+   * @arg Tn - normalized Temperature
    */
   
   //T0 = 300;
@@ -4237,36 +4264,23 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   Tn = T0 / 300.0;
 
   /**
-   * @param eV0
-   *        energy (kBT) [eV]
-   * @param em0
-   *        electron rest mass (m) [kg]
-   * @param hq0
-   *        Planck's constant (hbar) [eV·s]
-   * @param ec0
-   *        electron charge [A·s]([C])
+   * @arg eV0 - energy (kBT) [eV]
+   * @arg em0 - electron rest mass (m) [kg]
+   * @arg hq0 - Planck's constant (hbar) [eV·s]
+   * @arg ec0 - electron charge [A·s]([C])
    */
   eV0 = BOLTZ * T0;
   em0 = EM;
   hq0 = PLANCK;
   ec0 = EC;
 
-  //debug
-  cout << "eV0: " << eV0 << endl;
-
   /**
-   * @param rmom0
-   *        momentum ( sqrt(m·kB·T/q) ) [eV·s/m]
-   * @param spr0
-   *        r-space [m]
-   * @param spk0
-   *        k-space [1/m]
-   * @param time0 
-   *        time [s]
-   * @param velo0
-   *        velocity [m/s]
-   * @param cvr
-   *        ratio between light velocity and velocity
+   * @arg rmom0 - momentum ( sqrt(m·kB·T/q) ) [eV·s/m]
+   * @arg  spr0 - r-space [m]
+   * @arg  spk0 - k-space [1/m]
+   * @arg time0 - time [s]
+   * @arg velo0 - velocity [m/s]
+   * @arg   cvr - ratio between light velocity and velocity
    */
   rmom0 = sqrt((em0 / ec0) * eV0);
   spr0 = hq0 / rmom0;
@@ -4275,71 +4289,52 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   velo0 = spr0 / time0;
   cvr = CLIGHT / velo0;
 
-  //debug for Crygenic Tem
-  cout << "rmom0: " << rmom0 
-      << "\tspr0: " << spr0
-      << "\tspk0: " << spk0
-      << "\ttime0: " << time0
-      << "\tvelo0: " << velo0
-      << "\tcvr: " << cvr << endl;
-
   /**
-   * @param pot0
-   *        electrical potential [V]
-   * @param field0
-   *        electrical field [V/m]
-   * @param conc0
-   *        concentration [1/m**3]
+   * @arg   pot0 - electrical potential [V]
+   * @arg field0 - electrical field [V/m]
+   * @arg  conc0 - concentration [1/m**3]
    */
   pot0 = eV0;
   field0 = pot0 / spr0;
   conc0 = spk0 * spk0 * spk0;
 
   /**
-   * @param dens0 
-   *        mass density [kg/m**3]
+   * @arg dens0 - mass density [kg/m**3]
    */
   dens0 = em0 * conc0;
 
   /**
-   * @param dpc0  
-   *        deformation potential constant [eV/m]
-   * @param scrt0
-   *        scattering rate [1/s]
+   * @arg  dpc0 - deformation potential constant [eV/m]
+   * @arg scrt0 - scattering rate [1/s]
    */
   dpc0 = field0;
   scrt0 = 1.0 / time0;
 
   /**
-   * @param current [A/m]
+   * @arg curr0 - current [A/m]
    */
   curr0 = ec0 / time0;
 
   /**
-   * @param Nc
-   *        effective density of state: 2.82 x 1e25 , aproximately
-   * @param N_cur
+   * @arg    Nc - effective density of state: 2.82 x 1e25, aproximately
+   * @arg N_cur
    *        
    */
   Nc = 2 * pow(1.08 * em0 * pot0 / (hq0 * hq0 * ec0 * 2 * PI), 1.5);
-
   N_cur = 2 * hq0 / (em0 * PI * PI) * pow((em0 * eV0) / (hq0 * hq0), 2) / ec0;
 
   /**
-   * @param QuantumPotentialCoef
-   *        quantum potential coefficient
+   * @arg QuantumPotentialCoef - quantum potential coefficient
    */
   QuantumPotentialCoef = hq0 * hq0 * ec0 / (12.0 * 0.26 * em0 * spr0 * spr0 * pot0);
 
   /**
    * @brief normalize Si bulk parameters ?
    * 
-   * @param sia0
-   *        lattice constant a
-   * @param sirh0
-   *        mass density
-   * @param siul, siut
-   *        sound velocity 
+   * @arg  sia0 - lattice constant a
+   * @arg sirh0 - mass density
+   * @arg  siul, 
+   *       siut - sound velocity        
    */
   sia0 = sia0 / spr0;
   sirho = sirho / dens0;
@@ -4349,8 +4344,7 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   /**
    * @brief temperature dependent band gap
    * 
-   * @param sieg
-   *        Si energy bandgap
+   * @arg sieg - Si energy bandgap
    */
   if (T0 < 190.0)
     sieg = (1.170 + 1.059e-5 * T0 - 6.05e-7 * T0 * T0) / eV0;
@@ -4392,7 +4386,9 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   SurfSc_GAMMAn = 0.08;
 }
 
-/* scale the input: dopping concentration, potential, length */
+/**
+ * @brief scale the input: dopping concentration, potential, length 
+ */
 void MeshQuantities::scaling()
 {
 
@@ -4783,7 +4779,7 @@ void MeshQuantities::read_device_file()
  * @param p_numx, p_numy, p_numz
  *        number of coordinates in x-, y- and z- directions
  * @param c_numx, c_numy, c_numz
- *        ? number of lines of adjacent grid in x-, y- and z- directions.
+ *        ? number of cells of adjacent grid in x-, y- and z- directions.
  */
 void MeshQuantities::read_grid_file()
 {
