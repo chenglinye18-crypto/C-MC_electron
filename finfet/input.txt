@@ -8,7 +8,7 @@ ElectronNumber=600000
 
 HoleNumber=100000
 
-Temperature=4.2
+Temperature=300
 
 dt=2e-16
 

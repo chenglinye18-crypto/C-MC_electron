@@ -2948,10 +2948,10 @@ void MeshQuantities::pot2field(int flag, Epetra_Vector *p_pot_vec)
           field_z[C_LINDEX_ONE(i, j, k)] = -(pot[P_LINDEX_ONE(i, j, k + 1)] + pot[P_LINDEX_ONE(i + 1, j, k + 1)] + pot[P_LINDEX_ONE(i, j + 1, k + 1)] + pot[P_LINDEX_ONE(i + 1, j + 1, k + 1)] - pot[P_LINDEX_ONE(i, j, k)] - pot[P_LINDEX_ONE(i + 1, j, k)] - pot[P_LINDEX_ONE(i, j + 1, k)] - pot[P_LINDEX_ONE(i + 1, j + 1, k)]) / (4.0 * dz[k]);
 
           //debug
-          cout << "i: " << i << endl
-             << "j: "<< j << endl
-             << "k: " << k << endl
-             << "field_x[" << C_LINDEX_ONE(i, j, k) << "]: " << field_x[C_LINDEX_ONE(i, j, k)] << endl << endl;
+          // cout << "i: " << i << endl
+          //    << "j: "<< j << endl
+          //    << "k: " << k << endl
+          //    << "field_x[" << C_LINDEX_ONE(i, j, k) << "]: " << field_x[C_LINDEX_ONE(i, j, k)] << endl << endl;
         }
 
   /*
@@ -3014,7 +3014,7 @@ void MeshQuantities::compute_rhs()
   p_par_charge->ExtractView(&p_par_charge_value);
   p_rhs->ExtractView(&p_rhs_value);
 
-  /*only consider the silicon part */
+  /* only consider the silicon part */
   for (i = p_ibegin; i <= p_iend; i++)
     for (k = p_kbegin; k <= p_kend; k++)
       for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++)
@@ -3023,10 +3023,10 @@ void MeshQuantities::compute_rhs()
             beginning.*/
           p_rhs_value[P_LINDEX_ONE(i, j, k)] =
               p_par_charge_value[P_LINDEX_ONE(i, j, k)] * vol_val[P_LINDEX_ONE(i, j, k)] + p_dop_value[P_LINDEX_ONE(i, j, k)];
-          cout << "--- Computing RHS Pos1 ---" << endl;
-          cout << "p_par_charge_value[" << P_LINDEX_ONE(i, j, k) << "]: " << p_par_charge_value[P_LINDEX_ONE(i, j, k)] << endl
-              << "vol_val[" << P_LINDEX_ONE(i, j, k) << "]: " << vol_val[P_LINDEX_ONE(i, j, k)] << endl
-              << "p_dop_value[" << P_LINDEX_ONE(i, j, k) << "]: " << p_dop_value[P_LINDEX_ONE(i, j, k)] << endl;
+          // cout << "--- Computing RHS Pos1 ---" << endl;
+          // cout << "p_par_charge_value[" << P_LINDEX_ONE(i, j, k) << "]: " << p_par_charge_value[P_LINDEX_ONE(i, j, k)] << endl
+          //     << "vol_val[" << P_LINDEX_ONE(i, j, k) << "]: " << vol_val[P_LINDEX_ONE(i, j, k)] << endl
+          //     << "p_dop_value[" << P_LINDEX_ONE(i, j, k) << "]: " << p_dop_value[P_LINDEX_ONE(i, j, k)] << endl << endl;
         }
 
   for (icont = 0; icont < contact.size(); icont++)
@@ -3037,10 +3037,10 @@ void MeshQuantities::compute_rhs()
             if ((j >= p_jbegin_nonoverlap) && (j <= p_jend_nonoverlap)){
               p_rhs_value[P_LINDEX_ONE(i, j, k)] = 
                 contact[icont].CurrentVapp + vadd_val[P_LINDEX_ONE(i, j, k)] + contact[icont].PhiMS;
-              cout << "--- Computing RHS Pos2 ---" << endl;
-              cout << "contact[" << icont << "].CurrentVapp: " << contact[icont].CurrentVapp << endl
-                  << "vadd_val[" << P_LINDEX_ONE(i, j, k) << "]: " << vadd_val[P_LINDEX_ONE(i, j, k)] << endl
-                  << "contact[" << icont << "].PhiMS: " << contact[icont].PhiMS << endl;
+              // cout << "--- Computing RHS Pos2 ---" << endl;
+              // cout << "contact[" << icont << "].CurrentVapp: " << contact[icont].CurrentVapp << endl
+              //     << "vadd_val[" << P_LINDEX_ONE(i, j, k) << "]: " << vadd_val[P_LINDEX_ONE(i, j, k)] << endl
+              //     << "contact[" << icont << "].PhiMS: " << contact[icont].PhiMS << endl << endl;
             }
 }
 
@@ -3734,6 +3734,7 @@ void MeshQuantities::init_point_data()
           vadd_val[P_LINDEX_ONE(i, j, k)] = -log(sqrt(1.0 + alfa * alfa) - alfa);
         else
           vadd_val[P_LINDEX_ONE(i, j, k)] = 0;
+
       }
 
   if (p_jend == p_numy - 1)
@@ -4252,11 +4253,12 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   /**
    * @brief get the material coefficients
    *        and normalize them
-   * 
+   */
+
+  /** 
    * @arg T0 - Temperature [K]
    * @arg Tn - normalized Temperature
    */
-  
   //T0 = 300;
   read_Temperature_Input(FileName);
   T0 = device_temperature;
@@ -4345,6 +4347,9 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
    * @brief temperature dependent band gap
    * 
    * @arg sieg - Si energy bandgap
+   *      [Ref: Bludau, W., A. Onton, and W. Heinke. 
+   *      "Temperature dependence of the band gap of silicon." 
+   *      Journal of Applied Physics 45.4 (1974): 1846-1848.]
    */
   if (T0 < 190.0)
     sieg = (1.170 + 1.059e-5 * T0 - 6.05e-7 * T0 * T0) / eV0;

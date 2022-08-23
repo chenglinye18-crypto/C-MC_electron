@@ -3576,8 +3576,8 @@ void Band::GETINDENS(void)
 
     //____calculate intrinsic carrier densities using Boltzmann statistics
     eelmo=energy[0];
-    for(itab=1;itab<=MTAB;itab++)
-    {                            //DO itab=1,MTAB
+    for(itab=1;itab<=MTAB;itab++){                            
+        //DO itab=1,MTAB
         eel=energy[itab];
         dosl=CALDOSSUM(eel,PELEC);
         doslmo=CALDOSSUM(eelmo,PELEC);
@@ -3605,6 +3605,11 @@ void Band::GETINDENS(void)
     en0=2e0*en0;
     ep0=2e0*ep0;
     Ni=sqrt(en0*ep0*exp(-sieg));
+    cout << "en0: " << en0 << endl
+        << "ep0: " << ep0 << endl
+        << "sieg: " << sieg << endl
+        << "exp(-sieg): " << exp(-sieg) << endl
+        << "Ni: " << Ni << endl;
 
     //____end of GETINDENS
     return;
