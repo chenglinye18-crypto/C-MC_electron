@@ -1,5 +1,6 @@
 #include "utils.h"
 
+// numbers of cell and particle in x-, y- and z- direction
 int c_numx, c_numy, c_numz, p_numx, p_numy, p_numz, c_numxz, p_numxz;
 
 int c_jbegin, c_jend, c_ibegin, c_isize, c_iend, p_jbegin, p_jend, p_isize, p_ibegin, p_iend;
@@ -13,8 +14,10 @@ int c_num_local_y, p_num_local_y, c_num_local, p_num_local;
 
 int p_tox, p_gbegin, p_gend, p_box;
 
+//__distance between two particles in x-, y- and z- direction.
 vector<double>  dx, dy, dz;
-  
+
+//__coordinates in x-, y- and z- direction.
 vector<double> lx, ly, lz;
 
 Epetra_Map * p_map, * c_map, *c_map_y, *c_map_ghost, * p_map_ghost, * c_map_ghost_4, *p_qc_map;

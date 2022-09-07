@@ -411,16 +411,14 @@ void MeshQuantities::particle_to_density(Epetra_Vector *p_par, int par_flag)
 /* -------------------------------------------------------------------------- */
 /** @brief 主要的模拟函数，包括求解 poisson 方程和模拟粒子两部分
  */
-/* ---------------------------------------------------------------------------- */
-
-void MeshQuantities::density()
-{
+/* -------------------------------------------------------------------------- */
+void MeshQuantities::density() {
   double *fermi_val, *charge_fac, *qc_fermi_val;
   double *p_par_charge_value;
   double *pot;
 
+  // charge_fac is pointing to p_charge_fac
   p_charge_fac->ExtractView(&charge_fac);
-
   p_par_charge->PutScalar(0);
   p_par_charge->ExtractView(&p_par_charge_value);
 
@@ -485,14 +483,12 @@ double MeshQuantities::Ec_diff()
   tmp.Norm2(&tmp_norm);
   return tmp_norm;
 }
-/* -------------------------------------------------------------------------- */
+
+
 /** @brief 主要的模拟过程.
  *  @return
  */
-/* ---------------------------------------------------------------------------- */
-
-void MeshQuantities::run()
-{
+void MeshQuantities::run() {
 
   // run from the previous simulation result
   if (Flag_restart) 
@@ -3421,33 +3417,52 @@ void MeshQuantities::init_particle_data()
           }
 }
 
+/* ------------------------------------------------------------- */
 /**
  * @brief init the vectors according to device file,
  *        such as dopping density for donor and acceptor,
- *        particles' number 
+ *        particles' number etc
+ *     
+ *        将cmd_list[].XX中的内容
+ *        存入init_vector_entry()形参列表中最后的Epetra_vector中
  */
-void MeshQuantities::init_by_user_input()
-{
+/* ------------------------------------------------------------- */
+void MeshQuantities::init_by_user_input(){
 
   int i;
 
-  for (i = 0; i < cmd_list.size(); i++)
-  {
-    switch (cmd_list[i].type)
-    {
-    case 1:
+  for (i = 0; i < cmd_list.size(); i++) {
+    switch (cmd_list[i].type) {
+    //__donor
+    //xbegin, xend, ybegin, yend, zbegin, zend, conc
+    case 1:{
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         cmd_list[i].dbl_param[0], c_donor);
       break;
-    case 2:
+    }
+    //__acceptor
+    //xbegin, xend, ybegin, yend, zbegin, zend, conc
+    case 2:{
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         cmd_list[i].dbl_param[0], c_acceptor);
       break;
-    case 3:
+    }
+    
+    /**
+     * @brief region
+     *    xbegin, xend, ybegin, yend, zbegin, zend, mat_type
+     * 
+     * if mat_type is Silicon, 
+     * then int_param[1] will be assign to default_par_number
+     * hole(int_param[2]) keeps same
+     * 
+     * if mat_type is not Silicon, then int_para[] will be set to 0.
+     */
+    case 3:{
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
@@ -3463,7 +3478,13 @@ void MeshQuantities::init_by_user_input()
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         cmd_list[i].int_param[2], c_desired_hole_number);
       break;
-    case 4:
+    }
+      
+    //__motioncube
+    // xbegin, xend, ybegin, yend, zbegin, zend,
+    // rul_up, rul_down, rul_left, rul_right, rul_front, rul_back
+    // rul: rules
+    case 4: {
       SetMRCube(cmd_list[i].range[0], cmd_list[i].range[1],
                 cmd_list[i].range[2], cmd_list[i].range[3],
                 cmd_list[i].range[4], cmd_list[i].range[5],
@@ -3471,20 +3492,35 @@ void MeshQuantities::init_by_user_input()
                 cmd_list[i].int_param[2], cmd_list[i].int_param[3],
                 cmd_list[i].int_param[4], cmd_list[i].int_param[5]);
       break;
-    case 5:
+    }
+    
+    //__attach contact
+    // xbegin, xend, ybegin, yend, zbegin, zend, index
+    // index: index number of the silicon contact
+    case 5:{
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         cmd_list[i].int_param[0], c_attached_contact);
 
       break;
-    case 7:
+    }
+    
+    //__motion plane
+    // xbegin, xend, ybegin, yend, zbegin, zend, dir, mot_rule
+    // dir: the direction in which the particle hits the plane
+    // mot_rule: motion rule of the plane
+    case 7:{
       SetMRPlane(cmd_list[i].range[0], cmd_list[i].range[1],
                  cmd_list[i].range[2], cmd_list[i].range[3],
                  cmd_list[i].range[4], cmd_list[i].range[5],
                  cmd_list[i].int_param[0], cmd_list[i].int_param[1]);
       break;
-    case 8:
+    }
+    
+    //__parnumber (manual里看不到这个参数的说明了...)
+    // xbegin, xend, ybegin, yend, zbegin, zend, (ele_num, hole_num)猜测
+    case 8:{
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
@@ -3496,28 +3532,50 @@ void MeshQuantities::init_by_user_input()
                         cmd_list[i].int_param[1], c_desired_hole_number);
 
       break;
-    case 12:
+    }
+    
+    //__scatter area (manual里也没有..)
+    // xbegin, xend, ybegin, yend, zbegin, zend, (scatter_type_num)猜测
+    // 猜测最后一个参数为限定区域内散射类型的数目
+    case 12:{
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         cmd_list[i].int_param[0], c_scatter_type);
       break;
-    case 17:
+    }
+    
+    //__surface scatter range
+    // xbegin, xend, ybegin, yend, zbegin, zend
+    case 17: {
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         1, c_InSurfRegion);
-    case 18:
+      break;
+    }
+    
+    //__quantum region
+    // xbegin, xend, ybegin, yend, zbegin, zend
+    case 18: {
       init_vector_entry(cmd_list[i].range[0], cmd_list[i].range[1],
                         cmd_list[i].range[2], cmd_list[i].range[3],
                         cmd_list[i].range[4], cmd_list[i].range[5],
                         1, c_quantumRegion);
+      break;
+    }
+      
     }
   }
 }
 
-void MeshQuantities::init_surface_roughness()
-{
+/* ------------------------------------------------ */
+/**
+ * @brief initialize surface roughness parameter
+ * 
+ */
+/* ------------------------------------------------ */
+void MeshQuantities::init_surface_roughness() {
   int i, j, k, isurf;
   double dist;  // distance
   int *nearestSurf, *EeffDirection;
@@ -3527,29 +3585,26 @@ void MeshQuantities::init_surface_roughness()
 
   for (i = c_ibegin; i <= c_iend; i++)
     for (k = c_kbegin; k <= c_kend; k++)
-      for (j = c_jbegin_ghost; j <= c_jend_ghost; j++)
-      {
+      for (j = c_jbegin_ghost; j <= c_jend_ghost; j++) {
+        // initialize distance to a max value
         dist = 1e99;
         // 初始化surface的距离 及 最近的界面
-        for (isurf = 0; isurf < NumSurface; isurf++)
-        {
-          if ((SurfaceType[isurf] == 0) && (dist > fabs(lx[i] - SurfacePosition[isurf])))
-          {
+        for (isurf = 0; isurf < NumSurface; isurf++) {
+          if ((SurfaceType[isurf] == 0) && (dist > fabs(lx[i] - SurfacePosition[isurf]))) {
             dist = fabs(lx[i] - SurfacePosition[isurf]);
             nearestSurf[C_LINDEX_GHOST_ONE(i, j, k)] = isurf;
           }
-          if ((SurfaceType[isurf] == 1) && (dist > fabs(ly[j] - SurfacePosition[isurf])))
-          {
+          if ((SurfaceType[isurf] == 1) && (dist > fabs(ly[j] - SurfacePosition[isurf]))) {
             dist = fabs(ly[j] - SurfacePosition[isurf]);
             nearestSurf[C_LINDEX_GHOST_ONE(i, j, k)] = isurf;
           }
-          if ((SurfaceType[isurf] == 2) && (dist > fabs(lz[k] - SurfacePosition[isurf])))
-          {
+          if ((SurfaceType[isurf] == 2) && (dist > fabs(lz[k] - SurfacePosition[isurf]))) {
             dist = fabs(lz[k] - SurfacePosition[isurf]);
             nearestSurf[C_LINDEX_GHOST_ONE(i, j, k)] = isurf;
           }
         }
 
+        // get the effective direction
         EeffDirection[C_LINDEX_GHOST_ONE(i, j, k)] = SurfaceType[nearestSurf[C_LINDEX_GHOST_ONE(i, j, k)]];
       }
 }
@@ -3559,14 +3614,19 @@ void MeshQuantities::init_cell_data()
 
   int i, j, k;
 
+  // cell volume
   double *volume_value = NULL;
 
   c_volume->ExtractView(&volume_value);
 
   double *electron_charge, *hole_charge;
   int *material;
+
+  // doping conc. = donor - acceptor
   double dope;
   double *donor, *acceptor;
+  
+  // donor + acceptor
   double *da_value;
 
   c_donor->ExtractView(&donor);
@@ -3586,8 +3646,7 @@ void MeshQuantities::init_cell_data()
 
   for (i = c_ibegin; i <= c_iend; i++)
     for (k = c_kbegin; k <= c_kend; k++)
-      for (j = c_jbegin_ghost; j <= c_jend_ghost; j++)
-      {
+      for (j = c_jbegin_ghost; j <= c_jend_ghost; j++) {
         volume_value[C_LINDEX_GHOST_ONE(i, j, k)] = dx[i] * dy[j] * dz[k];
         da_value[C_LINDEX_GHOST_ONE(i, j, k)] = donor[C_LINDEX_GHOST_ONE(i, j, k)] + acceptor[C_LINDEX_GHOST_ONE(i, j, k)];
       }
@@ -3600,18 +3659,14 @@ void MeshQuantities::init_cell_data()
 
           dope = donor[C_LINDEX_GHOST_ONE(i, j, k)] - acceptor[C_LINDEX_GHOST_ONE(i, j, k)];
 
-          if (dope > 0)
-          {
-
+          // N-Type
+          if (dope > 0){
             electron_charge[C_LINDEX_GHOST_ONE(i, j, k)] = -dope * volume_value[C_LINDEX_GHOST_ONE(i, j, k)];
-
             hole_charge[C_LINDEX_GHOST_ONE(i, j, k)] = (band.Ni * band.Ni / dope) * volume_value[C_LINDEX_GHOST_ONE(i, j, k)];
           }
-          else if (dope < 0)
-          {
-
+          // P-Type
+          else if (dope < 0){
             electron_charge[C_LINDEX_GHOST_ONE(i, j, k)] = (band.Ni * band.Ni / dope) * volume_value[C_LINDEX_GHOST_ONE(i, j, k)];
-
             hole_charge[C_LINDEX_GHOST_ONE(i, j, k)] = -dope * volume_value[C_LINDEX_GHOST_ONE(i, j, k)];
           }
           else
@@ -3636,79 +3691,68 @@ void MeshQuantities::init_cell_data()
 #endif
 }
 
-void MeshQuantities::init_point_data()
-{
-
+void MeshQuantities::init_point_data() {
   int i, j, k;
 
   double *dop, *vol, *donor, *acceptor, *cvol;
-  double vol_tmp, da_tmp;
+  // volume
+  double vol_tmp;
+
+  // donor - acceptor
+  double da_tmp;
   int *material;
   double *charge_fac;
   double alfa, ndop;
   double *vadd_val;
 
+  // initizalize pointer
   p_vadd->ExtractView(&vadd_val);
-
   c_material->ExtractView(&material);
-
   c_volume->ExtractView(&cvol);
-
   p_volume->ExtractView(&vol);
-
   p_dop->ExtractView(&dop);
-
   p_charge_fac->ExtractView(&charge_fac);
-
   c_donor->ExtractView(&donor);
-
   c_acceptor->ExtractView(&acceptor);
-
   p_vadd->PutScalar(0);
 
+  // initialize point doping conc. and volume to 0
   for (i = p_ibegin; i <= p_iend; i++)
     for (k = p_kbegin; k <= p_kend; k++)
-      for (j = p_jbegin; j <= p_jend; j++)
-      {
+      for (j = p_jbegin; j <= p_jend; j++) {
         dop[P_LINDEX_ONE(i, j, k)] = 0;
         vol[P_LINDEX_ONE(i, j, k)] = 0;
       }
 
   for (i = c_ibegin; i <= c_iend; i++)
     for (k = c_kbegin; k <= c_kend; k++)
-      for (j = c_jbegin_ghost; j <= c_jend_ghost; j++)
-
-        if (material[C_LINDEX_GHOST_ONE(i, j, k)] == SILICON)
-        {
+      for (j = c_jbegin_ghost; j <= c_jend_ghost; j++){
+        if (material[C_LINDEX_GHOST_ONE(i, j, k)] == SILICON) {
 
           vol_tmp = cvol[C_LINDEX_GHOST_ONE(i, j, k)] * 0.125;
 
           da_tmp = vol_tmp * (donor[C_LINDEX_GHOST_ONE(i, j, k)] - acceptor[C_LINDEX_GHOST_ONE(i, j, k)]);
 
           //        if (NOT_GHOST_CELL(j)){
-          if (j >= p_jbegin)
-          {
+          if (j >= p_jbegin) {
             dop[P_LINDEX_ONE(i + 1, j, k)] += da_tmp;
             dop[P_LINDEX_ONE(i, j, k)] += da_tmp;
             dop[P_LINDEX_ONE(i + 1, j, k + 1)] += da_tmp;
             dop[P_LINDEX_ONE(i, j, k + 1)] += da_tmp;
           }
-          if (j < p_jend)
-          {
+          if (j < p_jend) {
             dop[P_LINDEX_ONE(i + 1, j + 1, k)] += da_tmp;
             dop[P_LINDEX_ONE(i, j + 1, k)] += da_tmp;
             dop[P_LINDEX_ONE(i + 1, j + 1, k + 1)] += da_tmp;
             dop[P_LINDEX_ONE(i, j + 1, k + 1)] += da_tmp;
           }
-          if (j >= p_jbegin)
-          {
+          if (j >= p_jbegin) {
             vol[P_LINDEX_ONE(i + 1, j, k)] += vol_tmp;
             vol[P_LINDEX_ONE(i, j, k)] += vol_tmp;
             vol[P_LINDEX_ONE(i + 1, j, k + 1)] += vol_tmp;
             vol[P_LINDEX_ONE(i, j, k + 1)] += vol_tmp;
           }
-          if (j < p_jend)
-          {
+          if (j < p_jend) {
             vol[P_LINDEX_ONE(i + 1, j + 1, k)] += vol_tmp;
             vol[P_LINDEX_ONE(i, j + 1, k)] += vol_tmp;
             vol[P_LINDEX_ONE(i + 1, j + 1, k + 1)] += vol_tmp;
@@ -3716,11 +3760,13 @@ void MeshQuantities::init_point_data()
           }
           //}
         }
+      }
 
+        
+  // get the doping density
   for (i = p_ibegin; i <= p_iend; i++)
     for (k = p_kbegin; k <= p_kend; k++)
-      for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++)
-      {
+      for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j++) {
         if (fabs(vol[P_LINDEX_ONE(i, j, k)]) > 1e-16)
           ndop = dop[P_LINDEX_ONE(i, j, k)] / vol[P_LINDEX_ONE(i, j, k)];
         else
@@ -3793,9 +3839,6 @@ void MeshQuantities::init_epetra_map_vector()
   p_jbegin_nonoverlap = p_jbegin;
 
   p_jend_nonoverlap = p_jend - 1;
-
-  cout << "p_jbegin_nonoverlap: " << p_jbegin_nonoverlap << endl
-      << "p_jend_nonoverlap: " << p_jend_nonoverlap << endl;
 
   if (p_jend == p_numy - 1)
   {
@@ -4088,8 +4131,7 @@ void MeshQuantities::init_epetra_map_vector()
     */
 }
 
-void MeshQuantities::getInputData(char *FileName)
-{
+void MeshQuantities::getInputData(char *FileName) {
 
   Trilinos_Util::InputFileReader fileReader(FileName);
 
@@ -4203,14 +4245,16 @@ void MeshQuantities::getInputData(char *FileName)
   readlink("/proc/self/exe", path_buf, sizeof(path_buf));
 
   bs_path = dirname(path_buf) + string("/../input");
+  cout << "bs_path: " << bs_path << endl;
 
   //fileReader.ShowAll();
 }
 
+/* ----------------------------- */
 /**
  * @brief 初始化物理参数
  */
-
+/* ----------------------------- */
 void MeshQuantities::init_phpysical_parameter(char * FileName)
 {
 
@@ -4318,7 +4362,7 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   curr0 = ec0 / time0;
 
   /**
-   * @arg    Nc - effective density of state: 2.82 x 1e25, aproximately
+   * @arg Nc - effective density of state: 2.82 x 1e25, aproximately
    * @arg N_cur
    *        
    */
@@ -4346,10 +4390,11 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   /**
    * @brief temperature dependent band gap
    * 
-   * @arg sieg - Si energy bandgap
+   * @arg sieg - Si energy bandgap after normalizing
    *      [Ref: Bludau, W., A. Onton, and W. Heinke. 
    *      "Temperature dependence of the band gap of silicon." 
    *      Journal of Applied Physics 45.4 (1974): 1846-1848.]
+   * @remark 归一化后是个反比例函数的曲线
    */
   if (T0 < 190.0)
     sieg = (1.170 + 1.059e-5 * T0 - 6.05e-7 * T0 * T0) / eV0;
@@ -4391,15 +4436,18 @@ void MeshQuantities::init_phpysical_parameter(char * FileName)
   SurfSc_GAMMAn = 0.08;
 }
 
+/* ------------------------------------------------------------------- */
 /**
- * @brief scale the input: dopping concentration, potential, length 
+ * @brief scale the input: doping concentration, potential, length 
  */
-void MeshQuantities::scaling()
-{
+/* ------------------------------------------------------------------- */
+void MeshQuantities::scaling() {
 
   int i, j, k;
   double *donor, *acceptor;
 
+  // scaling by r-space
+  //__distance between two particles in x-, y- and z- direction. 
   for (i = 0; i < dx.size(); i++)
     dx[i] /= spr0;
   for (i = 0; i < dy.size(); i++)
@@ -4407,6 +4455,7 @@ void MeshQuantities::scaling()
   for (i = 0; i < dz.size(); i++)
     dz[i] /= spr0;
 
+  //__coordinates in x-, y- and z- direction.
   for (i = 0; i < lx.size(); i++)
     lx[i] /= spr0;
   for (i = 0; i < ly.size(); i++)
@@ -4420,8 +4469,7 @@ void MeshQuantities::scaling()
 
   tsi = tsi * 1e-9 / spr0;
 
-  for (i = 0; i < contact.size(); i++)
-  {
+  for (i = 0; i < contact.size(); i++){
     contact[i].CurrentVapp /= pot0;
     contact[i].PhiMS /= pot0;
   }
@@ -4781,10 +4829,10 @@ void MeshQuantities::read_device_file()
  * Note: lgrid.txt must end with a blank line.
  *       The unit of all the coordinates is um.
  * 
- * @param p_numx, p_numy, p_numz
+ * @arg p_numx, p_numy, p_numz
  *        number of coordinates in x-, y- and z- directions
- * @param c_numx, c_numy, c_numz
- *        ? number of cells of adjacent grid in x-, y- and z- directions.
+ * @arg c_numx, c_numy, c_numz
+ *        number of cells of adjacent grid in x-, y- and z- directions.
  */
 void MeshQuantities::read_grid_file()
 {
@@ -4802,10 +4850,14 @@ void MeshQuantities::read_grid_file()
     cout << "Open the Grid file successfully!" << endl;
   }
 
+  /**
+   * @brief get particle coordinates in x-, y- and z- direction
+   *        and loop through all particles to read the coordinate into lx
+   *        and get the distance between two particles.
+   * 
+   */
   ifile >> p_numx;
-  cout << "p_numx: " << p_numx << endl;
-  for (int i = 0; i < p_numx; ++i)
-  {
+  for (int i = 0; i < p_numx; ++i) {
     ifile >> pos;
     lx.push_back(pos * 1e-6);
     if (i > 0)
@@ -4813,8 +4865,7 @@ void MeshQuantities::read_grid_file()
   }
 
   ifile >> p_numy;
-  for (int i = 0; i < p_numy; ++i)
-  {
+  for (int i = 0; i < p_numy; ++i) {
     ifile >> pos;
     ly.push_back(pos * 1e-6);
     if (i > 0)
@@ -4822,8 +4873,7 @@ void MeshQuantities::read_grid_file()
   }
 
   ifile >> p_numz;
-  for (int i = 0; i < p_numz; ++i)
-  {
+  for (int i = 0; i < p_numz; ++i) {
     ifile >> pos;
     lz.push_back(pos * 1e-6);
     if (i > 0)
@@ -4832,6 +4882,7 @@ void MeshQuantities::read_grid_file()
 
   ifile.close();
 
+  // cells = particles - 1
   c_numx = p_numx - 1;
   c_numy = p_numy - 1;
   c_numz = p_numz - 1;
