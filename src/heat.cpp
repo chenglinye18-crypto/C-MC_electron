@@ -64,6 +64,7 @@ void MeshQuantities::heat_density() {
 
   statistic();
 
+  // 重新置零
   p_electron_heat->PutScalar(0);
   p_hole_heat->PutScalar(0);
 /*
@@ -82,7 +83,7 @@ void MeshQuantities::heat_density() {
   
   update_particle();
 
-  if (rank == 0)
+  if (mpi_rank == 0)
     cout << "time used: " << t_time->ElapsedTime() << "s" << endl;
 
 #ifdef DEBUG_DATA_PRINT
@@ -105,15 +106,8 @@ void MeshQuantities::heat_field() {
 }
 
 void MeshQuantities::compute_heat() {
-
-  if (rank == 0) {
-    cout << endl << "**********************************************" << endl;
-    cout << "*" << endl;
-    cout << "*" << endl;
+  if (mpi_rank == 0) {
     cout << "begin computing heating for fixed potential" << endl;
-    cout << "*" << endl;
-    cout << "*" << endl;
-    cout << "***********************************************" << endl;
   }
 
   heat_field();
@@ -128,9 +122,7 @@ void MeshQuantities::compute_heat() {
   /* simulation loop */
   for (; step < heat_steps; step ++) {
 
-    if (rank == 0) {
-      cout << " ===== Heat Computing Process ===== " << endl;
-      cout << " ----- Total Heat Step: " << heat_steps << endl;
+    if (mpi_rank == 0) {
       cout << "************ step = " << step << " ********" << endl;
       cout << par_num << " particles"  << endl;
     }
@@ -155,7 +147,7 @@ void MeshQuantities::compute_heat() {
 
       MPI_Allreduce(&mr_gen_num, &tot_mr_gen_num, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-      if (rank == 0)
+      if (mpi_rank == 0)
         cout << "MultipleRefresh Gen : " << tot_mr_gen_num << endl;
     }
 

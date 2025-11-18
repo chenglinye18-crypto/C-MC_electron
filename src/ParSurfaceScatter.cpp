@@ -24,7 +24,7 @@ void MeshQuantities::GetSurfScRate()
     SurfScGamma = SurfRoughnessScRate + SurfPhononScRate;
   }
   
-   if(Flag_calSurfscatt==1 && rank==0)
+   if(Flag_calSurfscatt==1 && mpi_rank==0)
   {
      ofstream ofile;
 	 string filename;
@@ -127,8 +127,8 @@ void MeshQuantities::ElectronSurfacePhononScatter()
     //only electrons are allowed in this routine
     if(par_type!=PELEC)
     {
-	    cout << "error ElectronSurfacePhononScatter: Wrong particle type" << endl;
-	    exit(0);
+	cout<<"error ElectronSurfacePhononScatter: Wrong particle type";
+	exit(0);
     }
     //save inital band
     ibold=iband;
@@ -137,7 +137,7 @@ void MeshQuantities::ElectronSurfacePhononScatter()
         
     //first check for fictious scattering
     
-    Flag_SelfScatter = false;
+    Flag_SelfScatter=false;
     
     //calculate scattering-rate for all prozesses at energy energy
     band.CALSCATTE(energy,sca,iband);

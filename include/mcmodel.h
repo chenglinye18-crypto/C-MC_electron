@@ -23,12 +23,11 @@ class PoissonSolver;
 
 /* -------------------------------------------------------------------------- */
 /** @brief core class for the simulation
- *         处理程序流程控制
  */
 /* ---------------------------------------------------------------------------- */
 class MeshQuantities {
 
-  Epetra_MpiComm * Comm; ///< used by trilinos communication
+  const Epetra_MpiComm * Comm; ///< used by trilinos communication
 
   PoissonSolver * poisson_solver;
 
@@ -141,6 +140,10 @@ class MeshQuantities {
 
   int step, total_step, electron_number, hole_number, default_electron_num, default_hole_num;
 
+  /**
+   * @brief device temperature
+   * 
+   */
   double device_temperature;
 
   bool Flag_MultipleRefresh;
@@ -213,6 +216,13 @@ class MeshQuantities {
 
   double Ex, Ey, Ez, Rho, DA;
 
+  /**
+   * @param TetTf:    Tetra Time
+   * @param CellTf:   Time of Flight in Single Cell
+   * @param PhScTf:   Phonon Scatter time
+   * @param ImpScTf:  Impact Scatter Time
+   * @param SurfScTf: Surface Scatter Time
+   */
   double TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, Tf;
 
   double ImpScGamma, SurfScGamma;
@@ -340,7 +350,7 @@ class MeshQuantities {
 
   void scaling();
 
-  void init_phpysical_parameter(char *);
+  void init_phpysical_parameter(char * filename);
 
   void getInputData(char *);
 
@@ -497,7 +507,7 @@ class MeshQuantities {
 
   void heat_to_point(double, Epetra_Vector *);
 
-  void read_Temperature_Input(char *);
+  void read_device_input_temperature(char *);
 
 public:
   

@@ -139,7 +139,7 @@ int MeshQuantities::HitCell()
     {	
       //		GetCurrent(patch);//
         Generate();
-	    Reflect();
+	Reflect();
 /*
      int icont = (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
 
@@ -184,7 +184,7 @@ int MeshQuantities::HitCell()
     }
     else
     {
-      cout<<"error QUADHIT: No such rule of motion "<< rank << ' ' << imot << ' ' << p_box 
+      cout<<"error QUADHIT: No such rule of motion "<< mpi_rank << ' ' << imot << ' ' << p_box 
 	  << ' ' << icell << ' ' << jcell << ' ' << kcell << endl;
         exit(0);
     }

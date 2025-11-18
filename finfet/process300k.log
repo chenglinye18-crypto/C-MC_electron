@@ -1,0 +1,19 @@
+rank_ct: 0
+FileName: input.txt
+Tem: 4.2
+Open the Grid file successfully!
+c_jbegin = 0
+c_jend = 63
+c_jbegin_ghost = 0
+c_jend_ghost = 63
+c_num_local_y = 64
+c_num_local_y_ghost = 64
+Open the Device file successfully!
+en0: 0.0606664
+ep0: 0.0829714
+sieg: 3232.78
+exp(-sieg): 0
+Ni: 1e-30
+-0.00176 1.7216e-05
+---- Initializing Particle Data ----
+Particle Number : 765936

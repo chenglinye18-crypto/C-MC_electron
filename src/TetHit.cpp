@@ -12,6 +12,7 @@ double MeshQuantities::TetTime()
 
     //transform electric field into irreduzible wedge
     in_wedge(xfl,yfl,zfl,Ex,Ey,Ez);//E
+
     //datantlin[a][b][c]ctetbtet(,,)
     //b=0~3   a=0/1/2<=>x/y/x a=3ctetbk
     nf1=band.datantlin[0][0][itet]*xfl+band.datantlin[1][0][itet] * yfl
@@ -67,6 +68,7 @@ double MeshQuantities::TetTime()
 	{
         tfp4=(band.datantlin[3][3][itet]-(band.datantlin[0][3][itet]*xkl
 			+band.datantlin[1][3][itet]*ykl+band.datantlin[2][3][itet]*zkl))/nf4;
+            
 		if(tfp4<0){
 		  cout << "tfp4 = " << tfp4 << ' ' << tfp4 * nf4 << ' ' << nf4 << endl;
 		  tfp4=0;

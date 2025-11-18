@@ -2,12 +2,7 @@
 #include "Constant_GlobalVariable_MathFunction.h"
 #include <sstream>
 
-double sia0,
-        sirho,
-        siul,
-        siut,
-        a0pi,
-        sieg; // Si energy bandgap
+double sia0,sirho,siul,siut,a0pi,sieg;
 
 double T0,eV0,em0,hq0,ec0,rmom0,spr0,spk0,time0,velo0, Nc, Ncc, psi_si, phi_top, N_cur;
 
@@ -97,7 +92,8 @@ double Max(double p1,double p2)
  double Min(double p1,double p2,double p3,double p4,double p5,double p6, int & flag)
 {
     double a;
-    a = p1; flag = 1;
+    a = p1; 
+    flag = 1;
     if (a > p2) {
       a = p2;
       flag = 2;

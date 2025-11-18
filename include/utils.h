@@ -54,6 +54,15 @@
 
 using namespace std;
 
+/**
+ * c_numx: Number of Cell in a row in the X directions
+ * c_numy: Number of Cell in a row in the Y directions
+ * c_numz: Number of Cell in a row in the Z directions 
+ * 
+ * p_numx: Number of Points in a row in the X directions
+ * p_numy: Number of Points in a row in the Y directions
+ * p_numz: Number of Points in a row in the Z directions
+ */
 extern int c_numx, c_numy, c_numz, p_numx, p_numy, p_numz, c_numxz, p_numxz;
 
 extern int c_jbegin, c_jend, c_ibegin, c_isize, c_iend, c_kbegin, c_kend, c_ksize;
@@ -85,7 +94,7 @@ extern double fermi[2];
 
 extern double tsi, fermi_order;
 
-extern  int size, rank;
+extern  int mpi_size, mpi_rank;
 
 extern vector<double> int_val;
 

@@ -1,6 +1,5 @@
 #include "utils.h"
 
-// numbers of cell and particle in x-, y- and z- direction
 int c_numx, c_numy, c_numz, p_numx, p_numy, p_numz, c_numxz, p_numxz;
 
 int c_jbegin, c_jend, c_ibegin, c_isize, c_iend, p_jbegin, p_jend, p_isize, p_ibegin, p_iend;
@@ -14,10 +13,8 @@ int c_num_local_y, p_num_local_y, c_num_local, p_num_local;
 
 int p_tox, p_gbegin, p_gend, p_box;
 
-//__distance between two particles in x-, y- and z- direction.
 vector<double>  dx, dy, dz;
-
-//__coordinates in x-, y- and z- direction.
+  
 vector<double> lx, ly, lz;
 
 Epetra_Map * p_map, * c_map, *c_map_y, *c_map_ghost, * p_map_ghost, * c_map_ghost_4, *p_qc_map;
@@ -32,7 +29,7 @@ double fermi[2];
 
 double tsi, fermi_order;
 
-int size, rank;
+int mpi_size, mpi_rank;
 
 double qc_xratio , qc_xtheta, qc_yratio , qc_ytheta, qc_zratio, qc_ztheta;
 
@@ -310,16 +307,13 @@ double find_int_val(double x) {
   return int_val[index];
 }
 
-/**
- * @brief use the 3th parameter to scale the output data, scale = 1 by default 
- * 
- **/
+/*use the 3th parameter to scale the output data, scale = 1 by default */
  void print_p_data(Epetra_Vector *p_data, string filename, double scale) {
    int i,j,k;
    MPI_Status status;
 
-   if (rank != 0)
-     MPI_Recv(&j, 1, MPI_INT, rank - 1, 99 , MPI_COMM_WORLD, &status);
+   if (mpi_rank != 0)
+     MPI_Recv(&j, 1, MPI_INT, mpi_rank - 1, 99 , MPI_COMM_WORLD, &status);
 
    ofstream ofile;
 
@@ -330,26 +324,16 @@ double find_int_val(double x) {
 
    p_data->ExtractView(&p_data_value);
 
-   /**
-    * @arg p_ibegin, p_kbegin, p_jbegin_nonoverlap
-    *      0
-    * @arg p_iend
-    *      c_numx: x方向上cell的数目
-    * @arg p_kend
-    *      c_numz: z方向上cell的数目
-    * @arg p_jend_nonoverlap
-    *      (c_numy - 1): y方向上的cell数目 - 1
-    */
    for (i = p_ibegin; i <= p_iend; i ++)
       for (k = p_kbegin; k <= p_kend; k ++)
        for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j ++){
-          ofile << i << ' ' << j << ' ' << k << ' ' << p_data_value[P_LINDEX_ONE(i,j,k)] * scale << endl;
+       ofile << i << ' ' << j << ' ' << k << ' ' << p_data_value[P_LINDEX_ONE(i,j,k)] * scale << endl;
      }
 
    ofile.close();
 
-   if (rank != size - 1)
-     MPI_Send(&j, 1, MPI_INT, rank + 1, 99, MPI_COMM_WORLD);
+   if (mpi_rank != mpi_size - 1)
+     MPI_Send(&j, 1, MPI_INT, mpi_rank + 1, 99, MPI_COMM_WORLD);
 
  }
 
@@ -359,8 +343,8 @@ double find_int_val(double x) {
    double *c_data_value;
    int jb, je;
 
- if (rank != 0)
-     MPI_Recv(&j, 1, MPI_INT, rank - 1, 99 , MPI_COMM_WORLD, &status);
+ if (mpi_rank != 0)
+     MPI_Recv(&j, 1, MPI_INT, mpi_rank - 1, 99 , MPI_COMM_WORLD, &status);
 
    ofstream ofile;
 
@@ -384,8 +368,8 @@ double find_int_val(double x) {
 
    ofile.close();
 
-   if (rank != size - 1)
-     MPI_Send(&j, 1, MPI_INT, rank + 1, 99, MPI_COMM_WORLD);
+   if (mpi_rank != mpi_size - 1)
+     MPI_Send(&j, 1, MPI_INT, mpi_rank + 1, 99, MPI_COMM_WORLD);
 
  }
 
@@ -395,8 +379,8 @@ double find_int_val(double x) {
    MPI_Status status;
    int *c_data_value;
    int jb, je;
-   if (rank != 0)
-     MPI_Recv(&j, 1, MPI_INT, rank - 1, 99 , MPI_COMM_WORLD, &status);
+   if (mpi_rank != 0)
+     MPI_Recv(&j, 1, MPI_INT, mpi_rank - 1, 99 , MPI_COMM_WORLD, &status);
 
    ofstream ofile;
 
@@ -421,8 +405,8 @@ double find_int_val(double x) {
 
    ofile.close();
 
-   if (rank != size - 1)
-     MPI_Send(&j, 1, MPI_INT, rank + 1, 99, MPI_COMM_WORLD);
+   if (mpi_rank != mpi_size - 1)
+     MPI_Send(&j, 1, MPI_INT, mpi_rank + 1, 99, MPI_COMM_WORLD);
 
  }
 

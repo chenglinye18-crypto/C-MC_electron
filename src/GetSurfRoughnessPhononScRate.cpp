@@ -54,12 +54,12 @@ void MeshQuantities::GetSurfRoughnessPhononScRate()
 
                     //	surface phonon scattering rate
                     if(!Flag_SurfacePhononScatter)	
-		      surfPhononRate[C_LINDEX_GHOST_ONE(i,j,k)] = 0;
+		                  surfPhononRate[C_LINDEX_GHOST_ONE(i,j,k)] = 0;
                     else
                       {
-                        Wcl=pow(Tn,SurfSc_Nbmod)*BOLTZ*T0/(Eeff*field0);
-                        Wq=pow(12.0*effmass*em0*(Eeff*field0)/ec0/hq0/hq0,-1.0/3.0);
-                        Pf=SurfSc_Pft*Tn+SurfSc_Pfn*pow(Rho * conc0/(1e17*1e6),SurfSc_Npf)/Tn;
+                        Wcl = pow(Tn, SurfSc_Nbmod) * BOLTZ*T0 / (Eeff*field0);
+                        Wq = pow(12.0*effmass*em0*(Eeff*field0)/ec0/hq0/hq0, -1.0/3.0);
+                        Pf = SurfSc_Pft*Tn + SurfSc_Pfn * pow(Rho * conc0/(1e17*1e6), SurfSc_Npf) / Tn;
                         Wclq=(SurfSc_gama*Wcl+SurfSc_theta*Wq)/Pf;
                         surfPhononRate[C_LINDEX_GHOST_ONE(i,j,k)] = effmass*em0*BOLTZ*T0*SurfSc_XIph*SurfSc_XIph
                           /(pow(hq0,3)*sirho*pow(9050.02,2)*Wclq)/scrt0

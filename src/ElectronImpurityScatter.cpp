@@ -13,7 +13,7 @@ double MeshQuantities::GetImpScGamma()
      * located at (md * eebeta / (4 * mt) , which can be obtained by solving f'(e) = 0 
      * analyticaly. -- Wei Zhang
      * */
-      if(band.bhmrtfl)
+    if(band.bhmrtfl)
     {
       /*1. do not miss the 4 * PI
        *2. the Rho should be density of carrier, not charge.
@@ -81,10 +81,10 @@ double MeshQuantities::GetImpScRate(double eel)
         if(band.bhmrtfl)
         {
             eel=Max(eel,(1e-5));
-            rvscrt=DA/(16.0*PI*pow(eps[SILICON],2.0)
-                *sqrt(2.0*band.meld*pow(eel,3.0)))
-                * (log((eebeta+4.0*eel)/eebeta)
-                - 4.0*eel/(eebeta+4.0*eel));
+            rvscrt=DA / ( 16.0 * PI * pow(eps[SILICON], 2.0)
+                            * sqrt(2.0*band.meld*pow(eel,3.0) ) )
+                        * ( log( (eebeta+4.0*eel)/eebeta )
+                            - 4.0 * eel/(eebeta+4.0*eel) );
         }
         else 
         {
@@ -113,8 +113,8 @@ double MeshQuantities::GetImpScRate(double eel)
 	     * the Brooks and Herring(BH) model is used and deduced by
 	     * parabolic band. ---- Wei Zhang
 	     * */
-            rvscrt=DA*band.meld*sqrt(2.0*band.meld*eel)/(PI*pow(frickel*Rho,2.0)
-	                	*(1.0+4.0*eel*band.melt/(eebeta*band.meld)));
+            rvscrt = DA * band.meld * sqrt(2.0*band.meld*eel) / (PI*pow(frickel*Rho,2.0)
+	                	*(1.0 + 4.0 * eel * band.melt / (eebeta*band.meld) ) );
 
         }
         

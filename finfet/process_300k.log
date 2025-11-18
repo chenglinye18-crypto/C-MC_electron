@@ -1,0 +1,23 @@
+rank_ct: 0
+FileName: input.txt
+Tem: 300
+Open the Grid file successfully!
+c_jbegin = 0
+c_jend = 63
+c_jbegin_ghost = 0
+c_jend_ghost = 63
+c_num_local_y = 64
+c_num_local_y_ghost = 64
+Open the Device file successfully!
+en0: 0.146593
+ep0: 0.166249
+sieg: 43.4821
+exp(-sieg): 1.30609e-19
+Ni: 5.64185e-11
+-0.00176286 1.7216e-05
+Particle Number : 765936
+ ----- Total Step = 20000 ----- 
+************ step = 0 ********
+765936 particles
+time used: 0.624661s
+particle fly .. 
