@@ -392,8 +392,21 @@ void MeshQuantities::Pass()
     {
         case UP   :x=lx[icell];   icell--; break;
         case DOWN :x=lx[icell+1]; icell++; break;
-        case RIGHT:y=ly[jcell+1]; jcell++;rcurrent[jcell] += charge; break;
-        case LEFT :y=ly[jcell];   jcell--;lcurrent[jcell + 1] += charge; break;
+        case RIGHT:{
+          y = ly[jcell + 1];
+          jcell++;
+          rcurrent[jcell] += charge;
+          break;
+        }
+        case LEFT :{
+          // use current cell index for position and current accumulation,
+          // then move to the left neighbor
+          int jcur = jcell;
+          y = ly[jcur];
+          lcurrent[jcur] += charge;
+          jcell--;
+          break;
+        }
         case FRONT:z=lz[kcell];   kcell--; break;
         case BACK :z=lz[kcell+1]; kcell++; break;
     }
@@ -496,38 +509,38 @@ void MeshQuantities::CatchAtContact()
 
   /* assume we are simulating the MOSFET whose structure is simple */
 
-  if(idir==UP)
+  // 根据方向获取 相邻 cell 所属的 contact 索引
+  if(idir==UP)  // Negative x direction
     icont = (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell - 1, jcell,kcell)];
-  else if(idir==DOWN)
+  else if(idir==DOWN) // Positive x direction
     icont = (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell + 1, jcell,kcell)];
-  else if(idir==LEFT)
+  else if(idir==LEFT) // Negative y direction
     icont = (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell, jcell - 1,kcell)];
-  else if(idir==RIGHT)
+  else if(idir==RIGHT)  // Positive y direction
     icont= (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell, jcell + 1,kcell)];
-  else if(idir==FRONT)
+  else if(idir==FRONT)  // Negative z direction
     icont= (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell, jcell,kcell - 1)];
-  else if(idir==BACK)
+  else if(idir==BACK)   // Positive z direction
     icont= (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell, jcell,kcell + 1)];
 
 //  icont = (*c_attached_contact)[C_LINDEX_GHOST_ONE(icell, jcell,kcell)];
-
+  // 调整 contact 的索引
   icont --;
   
   if (icont < 0){
     err_message(WRONG_CONTACT, "Attached_Contact wrong , in catchAtContact.");
   }
 
+  // 粒子在y方向移动时，统计电流
   if (idir == RIGHT) 
-    rcurrent[jcell + 1] += charge;
+    rcurrent[jcell + 1] += charge;  // particle 向右移动时，右边cell多一个电荷
+  if (idir == LEFT) 
+    lcurrent[jcell] += charge;      // particle 向左移动时，当前 cell 多一个电荷
 
-   if (idir == LEFT) 
-    lcurrent[jcell] += charge;
-
-  contact[icont].NumParCatch++;
-  contact[icont].CharCatch += charge;
-  contact[icont].EnergyGen += energy;
+  contact[icont].NumParCatch++;       // 当前 contact 上捕获的粒子数 + 1
+  contact[icont].CharCatch += charge; // 更新当前 contact 上捕获的电荷量
+  contact[icont].EnergyGen += energy; // 更新当前 contact 上因捕获粒子而产生的能量
 }
-
 
 void MeshQuantities::CatchAtGate()
 {

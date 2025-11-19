@@ -1,2 +1,8 @@
 finfet/data/pvolume
 finfet/process_test4ct.log
+lib/*.o
+lib/main
+finfet/main
+finfet/*.log
+finfet/data/
+finfet/process.log

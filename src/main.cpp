@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
   mq->initialize(argv[1]);
 
   /*begin to run*/
-  //mq->run();
+  mq->run();
   
 #ifdef EPETRA_MPI
   MPI_Finalize();
@@ -48,4 +48,3 @@ int main(int argc, char *argv[])
 
 return 0;
 }
-

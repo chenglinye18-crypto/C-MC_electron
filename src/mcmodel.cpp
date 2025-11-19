@@ -59,7 +59,7 @@ void MeshQuantities::initialize(char * FileName){
   
 
   /*define the vectors*/
-  //init_epetra_map_vector();
+  init_epetra_map_vector();
 
   
 
@@ -69,20 +69,20 @@ void MeshQuantities::initialize(char * FileName){
    * ldg.txt 中的每一行命令会被存储为一个 user_cmd 对象 cmd 
    * 然后会将所有 user_cmd 对象存储在一个 cmd_list 之中
    */
-  //read_device_file();
+  read_device_file();
 
   /* 读取输入文件中的能带文件, 例如 kloem.txt */
-  //init_deep();
+  init_deep();
 
   /**
    * @brief init the vectors according to device file
    * 从 cmd_list 之中，逐行取出存储的 user_cmd 对象，即输入文件中的各个命令
    * 然后根据命令的关键字对应的编号值，为程序中的 vector 进行相应的赋值
    */
-  //init_by_user_input();
+  init_by_user_input();
 
   /* 去单位化 */
-  //scaling();
+  scaling();
 
   
 
@@ -96,21 +96,21 @@ void MeshQuantities::initialize(char * FileName){
    * 计算了声子散射+电离杂质散射 的散射率之和，是直接求和。
    * 计算了本征载流子密度
    */
-  //band.IELEC(bs_path);
+  band.IELEC(bs_path);
 
   /*init cell data*/
-  //init_cell_data();
+  init_cell_data();
 
   if (Flag_SurfaceScatter)
     init_surface_roughness();
 
   /*init point data*/
-  //init_point_data();
+  init_point_data();
   
-  //init_particle_data(); /*init particles according to nuetrality condition*/
+  init_particle_data(); /*init particles according to nuetrality condition*/
   
   /*init poisson matrix*/
-  //init_poisson_matrix();
+  init_poisson_matrix();
 
   
 
@@ -122,22 +122,22 @@ void MeshQuantities::initialize(char * FileName){
   //   stat_qc_pot->PutScalar(0);
   // }
 
-  // rcurrent = (double *) malloc(p_numy * sizeof(double));
-  // lcurrent = (double *) malloc(p_numy * sizeof(double));
+  rcurrent = (double *) malloc(p_numy * sizeof(double));
+  lcurrent = (double *) malloc(p_numy * sizeof(double));
 
-  // for (int i = 0;i < p_numy; i ++) {
-  //   rcurrent[i] = 0;
-  //   lcurrent[i] = 0;
-  // }
+  for (int i = 0;i < p_numy; i ++) {
+    rcurrent[i] = 0;
+    lcurrent[i] = 0;
+  }
 
-  // init_effective_potential();
+  init_effective_potential();
 
-  // init_p_mat();
+  init_p_mat();
 
-  // init_ep_range();
+  init_ep_range();
 
-  // if (!Flag_compute_potential)
-  //   read_potential();
+   if (!Flag_compute_potential)
+     read_potential();
 
   
 }
@@ -4740,10 +4740,12 @@ void MeshQuantities::read_grid_file() {
         std::cerr << "getcwd() error: " << strerror(errno) << std::endl;
     }
 
-    // Construct the full path to the grid file
-    std::string full_path = "/home/hyz/3dmc/3dmc_Si/finfet/" + grid_file_name;
-
-    // Print the full path for debugging purposes
+    // Construct the full path to the grid file (prefer current working dir)
+    std::string full_path = grid_file_name;
+    if (!file_exists(full_path)) {
+      // try relative to finfet/ because historical paths used that layout
+      full_path = std::string("finfet/") + grid_file_name;
+    }
     std::cout << "Attempting to open file: " << full_path << std::endl;
 
     // Check if the file exists
