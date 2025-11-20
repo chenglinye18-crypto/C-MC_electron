@@ -40,7 +40,11 @@ int main(int argc, char *argv[])
   mq->initialize(argv[1]);
 
   /*begin to run*/
+  if (verbose)
+    cout << "Calling run()" << endl;
   mq->run();
+  if (verbose)
+    cout << "run() finished" << endl;
   
 #ifdef EPETRA_MPI
   MPI_Finalize();

@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="108"
+   name=""
+   committed-date="2010-04-01T02:54:58.085236Z"
+   url="svn+ssh://svn@162.105.69.209:/home/svn/mc3d/branch/ep/output/input/bulk-finfet-40-20-10-300/plot3d"
+   last-author="svn"
+   kind="dir"
+   uuid="c04a761f-1b1e-4fc6-9691-31f84ec48fe9"
+   prop-time="2010-09-28T08:01:17.000000Z"
+   revision="198"/>
+<entry
+   committed-rev="92"
+   name="integral_data.c"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-19T07:20:47.614868Z"
+   checksum="48d1033b1e3d8b4657fb1a2e6ab1bd9c"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="90"
+   name="slices_input.txt"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-13T06:01:00.558043Z"
+   checksum="420b62de404cc8815e3977ee585c2ab0"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="velocity3D.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="70ef6643a2594c73fbedbaab208c3ae7"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="30"
+   name="pot_2D.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-12-20T12:37:29.887443Z"
+   checksum="89beea59c8d7a572b335fb68f9fc1096"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="103"
+   name="plot_3D_velo.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-30T13:08:51.237677Z"
+   checksum="28e2937fa4b18b7cd95d155933d5090c"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="plot_1D_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="71123f2a7c633fc8bf7618fab1cad366"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="plot_1D_z.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="12dc8e58c5cfc2e82f03a95cef919f23"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="62"
+   name="trace.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-01-09T11:56:43.681379Z"
+   checksum="2612aee1d60a2d3d28b96a3c9e6d05e5"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="qpot_1D_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="78c85a486d71587ba6b481665ec9e622"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="qpot_1D_z.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="47bcb0f38938513c1aacd49616b47d17"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="83"
+   name="current1.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-02-02T08:36:37.339472Z"
+   checksum="48ce91a7648e96a996b5e05d005249e4"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="81"
+   name="integral.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-02-01T11:57:27.451055Z"
+   checksum="a02006a9f118c9db31d8e6a05334f700"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="pot_1D_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="5993050db7191bbe8a576fc65576f169"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="pot_1D_z.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="b80cbeb545cb54ed5b5a23dec5d622d1"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="read_grid.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="e32d948099bdb07f7d6eb87d61ad6d3a"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="pot_1D.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="988ee5bed6e9477275471c0fc8520fec"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="pot_3D.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="8c295389a41da39d9c6aadbe6162c05b"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="volumeVisualization.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="9d47a3e8dd1792f7952d8fb8a239f552"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="44"
+   name="plot_2D_x.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-12-27T09:12:14.571830Z"
+   checksum="58a7de887d8adc208c6c06884d08e115"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="62"
+   name="plot_2D_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-01-09T11:56:43.681379Z"
+   checksum="8c3d776f591d9d748386df03b26f98e8"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="92"
+   name="int_input.txt"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-19T07:20:47.614868Z"
+   checksum="0b6c79ca1bd315a19d54b98eb66eff94"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="86"
+   name="plot_2D_z.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-11T13:21:31.577773Z"
+   checksum="9b524306d52f6de61b660ed07166d257"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="qpot_2D_x.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="800cde0a303e4c3290db29656942b8ad"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="90"
+   name="3dslices.c"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-13T06:01:00.558043Z"
+   checksum="28444b7a8edfba5c5c634ad2d793d38c"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="qpot_2D_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="3cc558784477681099d9305bbbdebf27"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="qpot_2D_z.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="65764bafdfbdadce04b04f589ff9de0b"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="62"
+   name="plot_cdata_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-01-09T11:56:43.681379Z"
+   checksum="8e1415aadcf14b46058aedc33a0e3ff3"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="plot_2D.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="268c476628241020096407f8b6163841"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="50"
+   name="plot_cdata.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-12-31T14:38:11.414908Z"
+   checksum="4b08faed8d80da025424a15cfb9da8e8"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="83"
+   name="3d_to_2d_x.c"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-02-02T08:36:37.339472Z"
+   checksum="8f3e7bfb29506d4c1e8d85356341ab9b"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="5"
+   name="finfet.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-11-15T07:32:41.019046Z"
+   checksum="955adc69cc8f62ca8fcf33ac0f00a347"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="82"
+   name="3d_to_2d_y.c"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-02-02T07:59:09.438910Z"
+   checksum="0829071bb89f9929550ea3cd79307a0c"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="103"
+   name="plot_3D_energy.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-30T13:08:51.237677Z"
+   checksum="8475ae7ee71804ca2562b9070bc123a2"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="103"
+   name="plot_3D_dens.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-03-30T13:08:51.237677Z"
+   checksum="70143f0c7587a9e0b0135fdcc17870b6"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="44"
+   name="pot_2D_x.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-12-27T09:12:14.571830Z"
+   checksum="0b793a607989de8506389523ad284fd3"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="81"
+   name="pot_2D_y.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-02-01T11:57:27.451055Z"
+   checksum="07b17709cac88f0acf6956ee13958986"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="108"
+   name="pot_2D_z.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-04-01T02:54:58.085236Z"
+   checksum="87c45eec953bf20d25bac8801e590f21"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="30"
+   name="sp_plot.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2009-12-20T12:37:29.887443Z"
+   checksum="3122a7b6e4f1789a0326a9f783ea5033"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+<entry
+   committed-rev="83"
+   name="current.m"
+   text-time="2010-09-28T08:01:17.000000Z"
+   committed-date="2010-02-02T08:36:37.339472Z"
+   checksum="21873dc0a86a65a6a198446c14a4f32d"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:17.000000Z"/>
+</wc-entries>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="184"
+   name=""
+   committed-date="2010-06-07T14:27:31.746527Z"
+   url="svn+ssh://svn@162.105.69.209:/home/svn/mc3d/branch/ep/output/submits"
+   last-author="svn"
+   kind="dir"
+   uuid="c04a761f-1b1e-4fc6-9691-31f84ec48fe9"
+   revision="198"/>
+<entry
+   committed-rev="184"
+   name="submit-dsec"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-07T14:27:31.746527Z"
+   checksum="3548f164d9975e95f416ad524c8ee679"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+<entry
+   committed-rev="184"
+   name="submit"
+   text-time="2010-09-28T08:01:21.000000Z"
+   committed-date="2010-06-07T14:27:31.746527Z"
+   checksum="ae703d7c6e71804016d877a249b7b563"
+   last-author="svn"
+   kind="file"
+   prop-time="2010-09-28T08:01:21.000000Z"/>
+</wc-entries>

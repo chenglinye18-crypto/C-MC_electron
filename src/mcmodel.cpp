@@ -496,6 +496,10 @@ double  MeshQuantities::Ec_diff() {
 void MeshQuantities::run() {
 
  //cout << "Running" << endl;
+  if (mpi_rank == 0) {
+    cout << "Entering run(): total_step = " << total_step
+         << ", restart step = " << restart_step << endl;
+  }
 
   if (Flag_restart) // run from the previous simulation result
     step = restart_step;
@@ -4771,14 +4775,14 @@ void MeshQuantities::read_grid_file() {
 
     
 
-  ifile.open(grid_file_name.c_str());
+  ifile.open(full_path.c_str());
 
     if (ifile) {
-          std::cout << "File opened successfully: " << grid_file_name << std::endl;
+          std::cout << "File opened successfully: " << full_path << std::endl;
       } else {
-          std::cerr << "Failed to open file: " << grid_file_name << std::endl;
+          std::cerr << "Failed to open file: " << full_path << std::endl;
           std::cerr << "Error: " << strerror(errno) << std::endl;
-          //return; // Exit the function if the file cannot be opened
+          return; // Exit the function if the file cannot be opened
       }
   
   // p_numx: the number of coordinates in X- direction.

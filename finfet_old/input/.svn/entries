@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wc-entries
+   xmlns="svn:">
+<entry
+   committed-rev="181"
+   name=""
+   committed-date="2010-06-06T13:12:41.853674Z"
+   url="svn+ssh://svn@162.105.69.209:/home/svn/mc3d/branch/ep/output/input"
+   last-author="svn"
+   kind="dir"
+   uuid="c04a761f-1b1e-4fc6-9691-31f84ec48fe9"
+   revision="198"/>
+<entry
+   name="finfet-z6nm-uniform"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-30-10-10"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-20-10-200"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-10-10"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-50-10-10"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-20-10-300"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-20-10"
+   kind="dir"/>
+<entry
+   name="finfet-refined"
+   kind="dir"/>
+<entry
+   name="debug"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-10-13"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-50-10"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-15-10"
+   kind="dir"/>
+<entry
+   name="finfet-uniform"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-10-16"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-10-19"
+   kind="dir"/>
+<entry
+   name="finfet-z6nm"
+   kind="dir"/>
+<entry
+   name="bulk-finfet"
+   kind="dir"/>
+<entry
+   name="bulk-finfet-40-10-7"
+   kind="dir"/>
+<entry
+   name="finfet"
+   kind="dir"/>
+</wc-entries>

@@ -1,0 +1,38 @@
+../lgrid.txt
+6
+../data/Electron19999
+5 4
+0
+3 -30 30 0 10
+data/dens_x3.txt
+fig/dens_x3.eps
+../data/Electron19999
+5 4
+1
+0 0 80 0 10
+data/dens_y0.txt
+fig/dens_y0.eps
+../data/Electron19999
+5 3
+0
+3 -30 30 0 10
+data/energy_x3.txt
+fig/energy_x3.eps
+../data/Electron19999
+5 1
+0
+3 -30 30 0 10
+data/veloy_x3.txt
+fig/veloy_x3.eps
+../data/Electron19999
+5 4
+2
+5 0 20 -30 30 
+data/dens_z5.txt
+fig/dens_z5.eps
+../data/pot19999
+1 0
+2
+5 0 150 -30 30 
+data/pot_z5.txt
+fig/pot_z5.eps

@@ -1,0 +1,2 @@
+
+./plot.sh: line 14: ((: i <=: syntax error: operand expected (error token is "<=")

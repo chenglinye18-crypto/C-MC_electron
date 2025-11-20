@@ -1,0 +1,199 @@
+3DMC-Si FinFET Monte Carlo Simulator
+====================================
+
+This repository contains a 3‑D Monte Carlo device simulator for silicon FinFETs.
+It combines a kinetic carrier solver (written in C++ and linked with Trilinos’
+Epetra package) with mesh/geometry descriptions that live under `finfet/`.  The
+code can be built and run on a Linux workstation with MPI support, and offers a
+set of Python utilities to visualize the resulting potentials, carrier densities,
+heat sources, and k‑space distributions.
+
+
+Platform & Software Requirements
+--------------------------------
+
+- 64‑bit Linux distribution (Ubuntu 22.04 tested).
+- GNU toolchain: `gcc`/`g++`, `make`, `autoconf`.
+- MPI implementation (OpenMPI or MPICH); `mpirun` is used for parallel runs.
+- Trilinos (Epetra component) installed locally.  The examples assume it lives in
+  `/home/ic/trilinos_install` and that `libepetra` is visible via
+  `LD_LIBRARY_PATH`.
+- Python 3.9+ plus `numpy`, `matplotlib`, and `vtk` (or `pyvista`).  These are
+  only needed for the scripts under `finfet/scripts/`; using a dedicated conda
+  environment (`mc_viz`) is recommended.
+
+
+Configuring & Building
+----------------------
+
+1. Install Trilinos and record its prefix (e.g. `/home/<user>/trilinos_install`).
+2. From the project root run configure, pointing at Trilinos and your MPI stack:
+
+   ```bash
+   ./configure \
+     --with-trilinos=/home/<user>/trilinos_install \
+     MPICXX=mpicxx CC=mpicc CXX=mpicxx
+   ```
+
+   Use `./configure --help` to see additional options (install prefix, debug
+   flags, etc.).
+
+3. Build the code:
+
+   ```bash
+   make -j$(nproc)
+   ```
+
+   The main executable will be produced in `finfet/main` (a copy also lives in
+   `lib/main` if you prefer running from the library folder).
+
+4. Ensure Trilinos libraries can be found at run time:
+
+   ```bash
+   export LD_LIBRARY_PATH=/home/<user>/trilinos_install/lib:$LD_LIBRARY_PATH
+   ```
+
+
+Running a Simulation
+--------------------
+
+Typical workflow:
+
+1. Change to the `finfet` case directory:
+
+   ```bash
+   cd finfet
+   ```
+
+2. Make sure the input decks are prepared:
+
+   - `input.txt` – master control file (time steps, statistics, refresh periods,
+     lattice temperature, etc.).
+   - `ldg.txt` – geometry/region specification (regions, motionplanes, contacts,
+     scattering rules).  The accompanying `ldg_spec.md` describes the grammar.
+   - `lgrid.txt` – mesh that maps the logical cells into real space.  Coordinates
+     are stored in micrometers.
+
+   The helper script `mkinput.sh` (if present for a case) regenerates `ldg.txt`
+   and `lgrid.txt` from higher-level parameters.
+
+3. Execute the Monte Carlo solver either directly or through MPI:
+
+   ```bash
+   ./main input.txt                      # serial run
+   mpirun -np 4 ./main input.txt > run.log   # distributed run with logging
+   ```
+
+   The program prints temperature, file paths, particle counts, and iteration
+   statistics to stdout/stderr (or to the redirect log).  A standard FinFET case
+   begins with ~7,000 transient steps to reach steady state and then switches to
+   heating/electro-phonon statistics collection.
+
+
+Key Inputs
+----------
+
+- `finfet/input.txt`
+  - Controls the total number of Monte Carlo steps, refresh cadence, bias sweep
+    settings (`VsVdVg`), and output cadence (`default_par_number`).  This file is
+    the first argument to `main`.
+
+- `finfet/ldg.txt`
+  - Region composition (`region`, `donor`, `acceptor`), boundary rules
+    (`motionplane`, `motioncube` with actions such as `PASS`, `REFLECT`,
+    `CATCH`, `GENERATE`, `SCATTOX`, etc.), contacts, quantum regions, surface
+    roughness lists, and `attachcontact` directives that connect spatial zones to
+    the high-level contacts.
+
+- `finfet/lgrid.txt`
+  - Mesh definition along X/Y/Z.  The solver reads the number of cells per axis
+    plus the coordinates of each cell center.  All coordinates are assumed to be
+    in micrometers.
+
+
+Simulation Outputs
+------------------
+
+Results are written under `finfet/`:
+
+- `YCLTEST.log` (or the log chosen during execution) records per-step totals:
+  particle counts, elapsed time, counts of generated/caught carriers, and the
+  transition into the heating statistics phase.
+
+- `data/` – binary/raw arrays indexed by step count.  Common files include:
+  - `pot####` – electrostatic potential.
+  - `heat####` – volumetric heat source density.
+  - `Electron####`, `Hole####` – real-space carrier distributions.
+  - `current` – textual Ids/Isd samples (`scripts/current.py` can parse this).
+  - Intermediate Monte Carlo statistics (`pvolume`, `process_*.log`, etc.).  The
+    `.gitignore` excludes large logs when committing.
+
+
+Visualization & Post-Processing Scripts
+---------------------------------------
+
+All plotting utilities live in `finfet/scripts/`.  Activate the `mc_viz` conda
+environment (or any environment with the required Python packages) and run the
+desired script from the `finfet/` directory so relative paths line up.
+
+### Potential
+
+- `plot_2D_pot.py data/pot6999 --plane xy --index 25 --grid lgrid.txt --output pot_xy.png`
+  - Creates a 2‑D heatmap for a specific slice (`plane` in `{xy,xz,yz}`).
+- `plot_3D_pot.py data/pot6999 --grid lgrid.txt --output pot6999.vtr`
+  - Generates a VTK RectilinearGrid that can be opened in ParaView.
+
+### Carrier Density (Real Space)
+
+- `plot_2D_realspace.py data/Electron6999 --plane xz --index 40 --grid lgrid.txt --output electron_xz.png`
+- `plot_3D_realspace.py data/Electron6999 --grid lgrid.txt --output electron6999.vtr`
+
+The same scripts work for `Hole####` snapshots.
+
+### k‑space Distribution
+
+- `plot_kspace.py data/Electron6999 --plane xy --output kspace_xy.png --vtk electron_kspace.vtp`
+  - Draws the velocity/momentum projection onto the chosen plane and optionally
+    emits a `.vtp` scatter cloud for 3‑D inspection.  Useful for verifying valley
+    occupation.
+
+### Heat Source
+
+- `plot_2D_heat.py data/heat6999 --plane yz --index 30 --grid lgrid.txt --output heat_yz.png`
+- `plot_3D_heat.py data/heat6999 --grid lgrid.txt --output heat6999.vtr`
+
+### Currents & Bias Sweeps
+
+- `current.py` – parses `data/current` and prints/plots Ids versus time or gate
+  voltage.
+- `plot_current.py` – helper to visualize sweep data (adjust file names as
+  needed).
+- `invV.py`, `inverseQ.py` – utilities for bias inversion or charge extraction
+  experiments (see inline comments).
+
+Example environment creation for plotting:
+
+```bash
+conda create -n mc_viz python=3.10 numpy matplotlib vtk
+conda activate mc_viz
+```
+
+After activating, run any of the commands above (or use `conda run -n mc_viz …`
+from scripts or automation).
+
+
+Tips & Troubleshooting
+----------------------
+
+- If `./main` exits immediately, re-check that `lgrid.txt`, `ldg.txt`, and
+  `input.txt` exist in the working directory and that `LD_LIBRARY_PATH` includes
+  the Trilinos libraries.
+- MPI runs inherit the same environment as the launching shell; set
+  `LD_LIBRARY_PATH` and `PATH` before invoking `mpirun`.
+- The geometry files often contain very large numbers of particles.  Keep an eye
+  on `generate`/`catch` counts in the log to ensure the statistics remain stable.
+- If ParaView / VTK complains, verify that the `.vtr`/`.vtp` file and the source
+  data have matching sizes (e.g. by re-running the plotting script).
+
+For additional details on the geometry syntax see `finfet/ldg_spec.md`.  To
+modify or regenerate the mesh, edit `lgrid.txt` or the scripts that produce it.
