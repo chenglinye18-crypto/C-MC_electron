@@ -197,3 +197,54 @@ Tips & Troubleshooting
 
 For additional details on the geometry syntax see `finfet/ldg_spec.md`.  To
 modify or regenerate the mesh, edit `lgrid.txt` or the scripts that produce it.
+
+
+中文使用说明
+------------
+
+> 以下内容为上文的中文摘要，便于沟通与交付。如需最新细节，请以英文段落为准。
+
+### 环境与依赖
+- 64 位 Linux（已在 Ubuntu 22.04 验证）。
+- GNU 编译套件、Make、Autoconf、MPI（OpenMPI/MPICH）。
+- 安装含 Epetra 的 Trilinos（示例路径 `/home/<user>/trilinos_install`），运行前将其 `lib` 路径加入 `LD_LIBRARY_PATH`。
+- Python 3（建议用 Conda 环境 `mc_viz`）以及 `numpy / matplotlib / vtk`。
+
+### 编译
+```bash
+./configure --with-trilinos=/home/<user>/trilinos_install MPICXX=mpicxx CC=mpicc CXX=mpicxx
+make -j$(nproc)
+export LD_LIBRARY_PATH=/home/<user>/trilinos_install/lib:$LD_LIBRARY_PATH
+```
+
+### 运行
+在 `finfet/` 下：
+```bash
+./main input.txt
+# 或并行
+mpirun -np 4 ./main input.txt > run.log
+```
+`input.txt` 控制步数/刷新，`ldg.txt` 定义结构与边界条件，`lgrid.txt` 是网格（单位 µm）。
+
+### 输出
+- `YCLTEST.log`：每步粒子数、生成/吸收、耗时等。
+- `finfet/data/`：电势 (`pot####`)、热功率 (`heat####`)、载流子 (`Electron####/Hole####`)、电流记录 (`data/current`)，以及重启信息。仓库中已移除这些大文件，运行后才生成。
+
+### 可视化脚本 (finfet/scripts)
+- `plot_2D_pot.py / plot_3D_pot.py`：电势切片与 VTK。
+- `plot_2D_realspace.py / plot_3D_realspace.py`：电子/空穴实空间分布，可加 `--log`。
+- `plot_kspace.py`：k 空间散点与 VTP。
+- `plot_2D_heat.py / plot_3D_heat.py`：热功率（支持多文件求平均、电子+空穴合并、W/cm³ 单位，默认取粒子损耗的相反数）。
+- `plot_current.py`：解析 `data/current` 并画电流曲线（支持 `--start_step`、`--ymin/--ymax`）。
+- `run_postprocess.sh`：批量执行上述脚本，可通过环境变量调 slice/step/current 参数。
+
+### Conda 示例
+```bash
+conda create -n mc_viz python=3.10 numpy matplotlib vtk
+conda activate mc_viz
+python scripts/plot_2D_pot.py --pot_file data/pot6999 --plane xy --index 15 --grid lgrid.txt --output pot_xy.png
+```
+
+### 常见问题
+- 若程序启动即退出，检查 `lgrid.txt`/`ldg.txt`/`input.txt` 是否位于当前目录以及 Trilinos 共享库是否可见。
+- 推送代码前请确认 `finfet/data/` 等输出未被追踪，避免触发 GitHub 100 MB 限制。
