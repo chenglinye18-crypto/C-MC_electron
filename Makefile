@@ -203,12 +203,12 @@ AUTOMAKE = automake-1.13
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -I/home/ic/trilinos_install/include
+CFLAGS = -g -O0 -I/home/ic/trilinos_install/include
 CPP = gcc -E
 CPPFLAGS = 
 CXX = mpicxx
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -I/home/ic/trilinos_install/include
+CXXFLAGS = -g -O0 -I/home/ic/trilinos_install/include
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps

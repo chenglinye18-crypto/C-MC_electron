@@ -171,6 +171,8 @@ const int SILICON=3;
 const int SILINE=4;
 //Token for surface at Polygate-SiO2
 const int GATELINE=5;
+//Token for IGZO
+const int IGZO=6;
 
 //Maximum Number of Contacts
 const int MNContact=16;

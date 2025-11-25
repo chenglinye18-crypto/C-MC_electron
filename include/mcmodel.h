@@ -185,6 +185,8 @@ class MeshQuantities {
   int mr_step, heat_steps;
 
   string output_dir, bs_path, restart_filename;
+  string kloem_table_file, kloab_table_file, ktoem_table_file, ktoab_table_file,
+         klaem_table_file, klaab_table_file;
 
   double Rpar, Rsqr, pckill;
 
@@ -520,5 +522,4 @@ public:
 };
 
 #endif
-
 
