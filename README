@@ -181,6 +181,32 @@ conda activate mc_viz
 After activating, run any of the commands above (or use `conda run -n mc_viz …`
 from scripts or automation).
 
+Coupling Electron Heat to the Phonon BTE Solver
+-----------------------------------------------
+
+- `phonon_BTE_MC/setup_case_from_electron.m` reads `finfet/lgrid.txt` and builds
+  a nonuniform rectilinear mesh that matches the Si device.
+- `phonon_BTE_MC/load_heat_from_finfet.m` parses `data/heat####` (per-step power
+  density) and converts it to `W/m^3` for each control volume.
+- `MC_time_loop_BTE` now looks for `opts.source.qvol`. When present, the solver
+  injects particles according to that volumetric heat map instead of the default
+  mid-plane surface heaters.
+
+Example MATLAB driver:
+
+```matlab
+cs   = setup_case_from_electron('../finfet/lgrid.txt');
+si   = mat_silicon_100();
+opts = mc_default_opts();
+heat = load_heat_from_finfet('../finfet', 6999);   % pick a heatXXXX snapshot
+opts.source = struct('qvol', heat.qvol);
+[Tp, p, out] = MC_solve_BTE(cs, si, opts);
+```
+
+You can switch to electron-only or hole-only heat via
+`load_heat_from_finfet(...,'Include','electron')`, and override the MC time-step
+(`'Dt'`) or `stat_heat_step` if your electron input uses different values.
+
 
 Tips & Troubleshooting
 ----------------------
@@ -244,6 +270,22 @@ conda create -n mc_viz python=3.10 numpy matplotlib vtk
 conda activate mc_viz
 python scripts/plot_2D_pot.py --pot_file data/pot6999 --plane xy --index 15 --grid lgrid.txt --output pot_xy.png
 ```
+
+### 声子 BTE 与电子热源耦合
+- `phonon_BTE_MC/setup_case_from_electron.m`：读取 `finfet/lgrid.txt`，生成与电子网格一致的 BTE case。
+- `phonon_BTE_MC/load_heat_from_finfet.m`：解析 `data/heatXXXX`，把电子+空穴热功率密度转换为 `W/m^3` 的 cell 字段（默认考虑 `dt=1e-16 s`、`stat_heat_step=5000`，可在参数中覆盖）。
+- BTE 主循环 `MC_time_loop_BTE` 新增 `opts.source.qvol` 支持：若 `opts.source.qvol` 提供 Nc×1 体热源（`W/m^3`），则在每个时间步会按该分布发射声子偏差粒子；否则退化为原始的面热源模板。
+
+MATLAB 使用示例：
+```matlab
+cs = setup_case_from_electron('../finfet/lgrid.txt');
+si = mat_silicon_100();
+opts = mc_default_opts();
+heat = load_heat_from_finfet('../finfet', 6999);
+opts.source = struct('qvol', heat.qvol);
+[Tp, p, out] = MC_solve_BTE(cs, si, opts);
+```
+若希望只使用电子或空穴部分，可调用 `load_heat_from_finfet(...,'Include','electron')`。
 
 ### 常见问题
 - 若程序启动即退出，检查 `lgrid.txt`/`ldg.txt`/`input.txt` 是否位于当前目录以及 Trilinos 共享库是否可见。

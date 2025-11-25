@@ -1,6 +1,50 @@
 
 #include "mcmodel.h"
 
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+
+namespace {
+
+bool is_absolute_path(const std::string &path) {
+#ifdef _WIN32
+  return !path.empty() &&
+         (path[0] == '/' || path[0] == '\\' || (path.size() > 1 && path[1] == ':'));
+#else
+  return !path.empty() && path[0] == '/';
+#endif
+}
+
+std::string resolve_dispersion_path(const std::string &base, const std::string &filename) {
+  if (filename.empty()) {
+    return std::string();
+  }
+  if (is_absolute_path(filename)) {
+    return filename;
+  }
+  return base + "/" + filename;
+}
+
+void open_dispersion_table(std::ifstream &stream, const std::string &base,
+                           const std::string &filename, const char *label) {
+  if (filename.empty()) {
+    std::ostringstream oss;
+    oss << "Dispersion table filename for " << label << " is not specified.";
+    throw std::runtime_error(oss.str());
+  }
+
+  const std::string path = resolve_dispersion_path(base, filename);
+  stream.open(path.c_str());
+  if (!stream) {
+    std::ostringstream oss;
+    oss << "Failed to open dispersion table " << label << " at " << path;
+    throw std::runtime_error(oss.str());
+  }
+}
+
+}  // namespace
+
 void MeshQuantities::get_state()
 {
   bool smallfl;
@@ -709,9 +753,7 @@ void MeshQuantities::init_deep() {
     int size;
     ifstream ftpkloem;
 
-    string filename;
-    filename = bs_path + "/kloem.txt";
-    ftpkloem.open(filename.c_str());
+    open_dispersion_table(ftpkloem, bs_path, kloem_table_file, "kloem");
 
     for(it=0;it<120;it++)
       for(ik=0;ik<201;ik++)
@@ -721,8 +763,7 @@ void MeshQuantities::init_deep() {
       
     //c	   kloab
     ifstream ftpkloab;
-    filename = bs_path + "/kloab.txt";
-    ftpkloab.open(filename.c_str());
+    open_dispersion_table(ftpkloab, bs_path, kloab_table_file, "kloab");
     
     for(it=0;it<110;it++)
       for(ik=0;ik<201;ik++)
@@ -731,8 +772,7 @@ void MeshQuantities::init_deep() {
 
     //c	   ktoem
     ifstream ftpktoem;
-    filename = bs_path + "/ktoem.txt" ;
-    ftpktoem.open(filename.c_str());
+    open_dispersion_table(ftpktoem, bs_path, ktoem_table_file, "ktoem");
     for(it=0;it<160;it++)
       for(ik=0;ik<51;ik++)
         ftpktoem>>ktoem[ik][it];
@@ -742,8 +782,7 @@ void MeshQuantities::init_deep() {
     //c	   ktoab
 
     ifstream ftpktoab;
-    filename = bs_path + "/ktoab.txt";
-    ftpktoab.open(filename.c_str());
+    open_dispersion_table(ftpktoab, bs_path, ktoab_table_file, "ktoab");
     for(it=0;it<150;it++)
       for(ik=0;ik<51;ik++)
         ftpktoab>>ktoab[ik][it];
@@ -752,8 +791,7 @@ void MeshQuantities::init_deep() {
 
     //c	   klaem
     ifstream ftpklaem;
-    filename = bs_path + "/klaem.txt";
-    ftpklaem.open(filename.c_str());
+    open_dispersion_table(ftpklaem, bs_path, klaem_table_file, "klaem");
     for(it=0;it<160;it++)
       for(ik=0;ik<51;ik++)
         ftpklaem>>klaem[ik][it];
@@ -761,11 +799,9 @@ void MeshQuantities::init_deep() {
       
     //c	   klaab
     ifstream ftpklaab;
-    filename = bs_path + "/klaab.txt";
-    ftpklaab.open(filename.c_str());
+    open_dispersion_table(ftpklaab, bs_path, klaab_table_file, "klaab");
     for(it=0;it<150;it++)
       for(ik=0;ik<51;ik++)
         ftpklaab >> klaab[ik][it];
     ftpklaab.close();
 }
-

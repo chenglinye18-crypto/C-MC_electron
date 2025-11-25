@@ -953,7 +953,7 @@ void  Band::READBS(void) {
     // 下面都是对 Tetrahedron 的一些操作
 
     //cal. velocities within each tetrahedron
-    VELOTET();  // VELO_TET
+    VELOTET();  // VELO_TET // 根据组成Tetrahedron的4个k-point的空间坐标与能量来计算这个 Tetrahedron 的群速度
 
     //get vectors normal to the four surfaces of each tetrahedron
     //(Hessian form)    
@@ -4272,9 +4272,9 @@ void Band::IELEC(string path)
 {
     //     process elec.scatt command
     //____local variables
-    bool calcdos,calcband;
-    int i,itab,iptype;
-    double sck;
+    bool calcdos,calcband;  //计算DOS和能带结构的标志位
+    int i,itab,iptype;      //i，能量表索引，粒子类型
+    double sck;             //散射相关的数值变量
     // char cscat[CPCVL];
     
     //____set parameters for bandstructure and particle type
@@ -4301,22 +4301,22 @@ void Band::IELEC(string path)
 
     //____read card parameters
     opcalc  =false;              //lval(1,linum)
-    calcband =false;             //lval(2,linum)
-    calcdos  =false;             //lval(3,linum)
-    kaneiifl =false;             //lval(4,linum)
-    thomiifl =true;              //lval(5,linum)
-    fisciifl =false;             //lval(6,linum)
-    sanoiifl =false;             //lval(7,linum)
-    iifl    =true;               //lval(8,linum)
-    seciifl =false;              //true;//lval(9,linum)
-    tunxfl  =false;              //lval(10,linum)
+    calcband =false;             //lval(2,linum)  // 能带计算的标志
+    calcdos  =false;             //lval(3,linum)  // 状态密度的计算标志
+    kaneiifl =false;             //lval(4,linum)  Kane formula for elec impact ionization
+    thomiifl =true;              //lval(5,linum)  Thoma formula for elec impact ionization
+    fisciifl =false;             //lval(6,linum)  Fischetti formula ... 
+    sanoiifl =false;             //lval(7,linum)  Sano formula ...
+    iifl    =true;               //lval(8,linum)  flag for impact ionization scattering
+    seciifl =false;              //true;//lval(9,linum)  // 二次 Impact Ionization
+    tunxfl  =false;              //lval(10,linum)   tunneling of electrons in the oxide 
 
-    bhfl    =false;              //true;//lval(12,linum)
-    frickfl =false;              //true;//lval(13,linum)
-    bhmrtfl =false;              //lval(14,linum)
-    injoxfl =false;              //lval(15,linum)
-    jacophfl=true;               //lval(16,linum)
-    fiscphfl=false;              //lval(17,linum)
+    bhfl    =false;              //true;//lval(12,linum)  Brooks-Herring impurity scattering, 后续未被使用
+    frickfl =false;              //true;//lval(13,linum)  Frick Impurity scattering,后续未被使用
+    bhmrtfl =false;              //lval(14,linum)  // Brooks-Herring 修正标志?
+    injoxfl =false;              //lval(15,linum)   // 注入 Oxide 标志? 后续未被使用
+    jacophfl=true;               //lval(16,linum)  Jacobian 声子散射
+    fiscphfl=false;              //lval(17,linum)   Fischetti 声子散射
 
     //____normalize phonon temperature and deformation potentials
     // 去单位化
@@ -4330,6 +4330,12 @@ void Band::IELEC(string path)
      */
     // temperature related params
     // 去单位化
+    // 谷间散射的等效温度，对应论文Analytic band Monte Carlo model for electron transport in Si including acoustic and optical phonon dispersion
+    // 如果用 ℏω 的话，还需要 / eV0 来 scaling  
+    //  以temptag为例，可以用自己算一下，140/300 ≈ 0.012/(8.617343e-5 * 300)
+    //  其余同理。
+    //  也简单估算了一下 4.2K 下的情况，两者的差距还是蛮大的，只能保留一位小数
+    //  不太明白为什么要用这种写法
     temptag=140.0/T0;            //dval( 1,linum)/T0
     templag=215.0/T0;            //dval( 2,linum)/T0
     templog=720.0/T0;            //dval( 3,linum)/T0

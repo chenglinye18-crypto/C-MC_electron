@@ -21,7 +21,7 @@
 Band band;
 
 /** 
- * @brief 默认构造函数
+ * @brief 默认构造函数s
  */
 MeshQuantities::MeshQuantities() {
   
@@ -43,6 +43,9 @@ MeshQuantities::MeshQuantities() {
  */
 /* ---------------------------------------------------------------------------- */
 void MeshQuantities::initialize(char * FileName){
+
+  /* 打印开始初始化，读取参数*/
+  cout << "Initializing ... Reading input parameters from file: " << FileName << endl;
   
   /*初始化一些物理参数*/
   // 初始化参数，并对部分物理参数做了去单位化的处理
@@ -59,7 +62,7 @@ void MeshQuantities::initialize(char * FileName){
   
 
   /*define the vectors*/
-  init_epetra_map_vector();
+  init_epetra_map_vector();    //暂时不管
 
   
 
@@ -71,7 +74,7 @@ void MeshQuantities::initialize(char * FileName){
    */
   read_device_file();
 
-  /* 读取输入文件中的能带文件, 例如 kloem.txt */
+  // 某个能量区间内，不同的 k 空间采样点区间对应的概率密度
   init_deep();
 
   /**
@@ -3054,190 +3057,7 @@ void MeshQuantities::select_kstate(Particle * iter, int dir) {
 }
 
 
- void MeshQuantities::compute_par_num() {
-
-   int * material;
-   int i,j,k;
-   Particle newpar;
-   double lamda, par_charge;
-   int pnum;
-   int iptype, ipar;
-   int * cell_electron_num, * cell_hole_num, * desired_ele_num, * desired_hole_num;
-   double * electron_charge;
-   double * hole_charge;
-
-   c_material->ExtractView(&material);
-   c_electron_num->ExtractView(&cell_electron_num);
-   c_hole_num->ExtractView(&cell_hole_num);
-
-   c_desired_electron_number->ExtractView(&desired_ele_num);
-   c_desired_hole_number->ExtractView(&desired_hole_num);
-
-   /*initialized in init_cell_data(), according to the dopping density of
-    * donors and acceptors.
-    * */
-   c_init_electron_charge->ExtractView(&electron_charge);
-   c_init_hole_charge->ExtractView(&hole_charge);
-
-   /*compute particle number for each cell */
-   for (i = c_ibegin; i <= c_iend; i ++)
-     for (k = c_kbegin; k <= c_kend; k ++)
-       for (j = c_jbegin_ghost; j <= c_jend_ghost; j ++)
-       /* only silicon cell contains carriers */
-	 if(material[C_LINDEX_GHOST_ONE(i,j,k)] == SILICON) {
-       /* electron_number and hole_number are set by the config files as the
-	* total number of electrons and holes to be simulated*/
-         cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)] =
-           int (1e-10 + electron_charge[C_LINDEX_GHOST_ONE(i,j,k)] / sum_charge[PELEC] * electron_number) + 1; 
-         cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] =
-           int (1e-10 + hole_charge[C_LINDEX_GHOST_ONE(i,j,k)] / sum_charge[PHOLE] * hole_number) + 1;
-
-         if (cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)] > desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)])
-	   desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)] = cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)];
-
-         if (cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] > desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)])
-	   desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
-
-	 if (desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)] < default_electron_num)
-	   desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)] = default_electron_num;
-
-	 if (desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] < default_hole_num)
-	   desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = default_hole_num;
-
-       /* count the total carrier number on our local process, excluding the
-	* ghost cells */
-       }
- }
-
- void MeshQuantities::compute_total_par_num(){
-   int i,j,k;
-   int * cell_electron_num, * cell_hole_num;
-
-   local_par_num = 0;
-
-   c_electron_num->ExtractView(&cell_electron_num);
-   c_hole_num->ExtractView(&cell_hole_num);
-
-   for (i = c_ibegin; i <= c_iend; i ++)
-     for (k = c_kbegin; k <= c_kend; k ++)
-       for (j = c_jbegin; j <= c_jend; j ++)
-	 local_par_num += cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)] + cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
-
-   /*count the total number by mpi_allreduce */
-   MPI_Allreduce(&local_par_num, &par_num, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-   if (mpi_rank == 0)
-     cout << "Particle Number : " << par_num << endl;
-
- }
-
-/** 
- * @brief initialize particles array
- */
- void MeshQuantities::init_particle_data() {
-   int * material;
-   int i,j,k;
-   Particle newpar;
-   double lamda, par_charge;
-   int pnum;
-   int iptype, ipar;
-   int * cell_electron_num, * cell_hole_num; 
-   double * electron_charge;
-   double * hole_charge;
-   double * ele_charge_value, * hole_charge_value;
-   int * cell_contact;
-
-   Epetra_Vector c_ele_charge_init(*c_map_ghost);
-   Epetra_Vector c_hole_charge_init(*c_map_ghost);
-
-   compute_par_num();
-
-   if (Flag_restart) {
-     read_par_info_for_restart(&c_ele_charge_init, c_electron_num,&c_hole_charge_init, c_hole_num);
-     c_ele_charge_init.ExtractView(&ele_charge_value);
-     c_hole_charge_init.ExtractView(&hole_charge_value);
-   }
-
-   compute_total_par_num();
-
-   c_material->ExtractView(&material);
-
-   c_electron_num->ExtractView(&cell_electron_num);
-   c_hole_num->ExtractView(&cell_hole_num);
-
-   c_init_electron_charge->ExtractView(&electron_charge);
-   c_init_hole_charge->ExtractView(&hole_charge);
-
-   c_attached_contact->ExtractView(&cell_contact);
-
-     /* for each cells and each particle type */
-   for(iptype = 0; iptype < 2; iptype ++)
-     for (i = c_ibegin; i <= c_iend; i ++)
-       for (k = c_kbegin; k <= c_kend; k ++)
-	 for (j = c_jbegin; j <= c_jend; j ++)
-	 /* silicon cells only*/
-         if (material[C_LINDEX_GHOST_ONE(i,j,k)] == SILICON) 
-         {
-	   if ((!Flag_restart) || (cell_contact[C_LINDEX_GHOST_ONE(i,j,k)] > 0)) {
-	     if (iptype == 0){/*particles share the same charge*/
-	       pnum = cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)];
-	       par_charge = electron_charge[C_LINDEX_GHOST_ONE(i,j,k)] / pnum;
-	     }
-	     else{/*holes share the same charge */
-	       pnum = cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
-	       par_charge = hole_charge[C_LINDEX_GHOST_ONE(i,j,k)] / pnum;
-	     }
-	   } else {
-	     if (iptype == 0){/*particles share the same charge*/
-	       pnum = cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)];
-	       if (pnum == 0) continue;
-	       par_charge = - ele_charge_value[C_LINDEX_GHOST_ONE(i,j,k)] / pnum;
-	     } else{/*holes share the same charge */
-	       pnum = cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
-	       if (pnum == 0) continue;
-	       par_charge = hole_charge_value[C_LINDEX_GHOST_ONE(i,j,k)] / pnum;
-	     }
-	   }
-
-	   for (ipar = 0; ipar < pnum; ipar ++){ 
-
-             newpar.par_id = ipar;
-
-             lamda = Random();
-	     if (!BETWEEN01(lamda)){
-	       err_message(WRONG_RANDOM, "in init_particle");
-	       exit(0);
-	     }
-
-             newpar.x = lamda * lx[i] + (1 - lamda) * lx[i + 1];
-             lamda = Random();
-	     if (!BETWEEN01(lamda)){
-	       err_message(WRONG_RANDOM, "in init_particle");
-	       exit(0);
-	     }
-             newpar.y = lamda * ly[j] + (1 - lamda) * ly[j + 1];
-             lamda = Random();
-
-	     if (!BETWEEN01(lamda)){
-	       err_message(WRONG_RANDOM, "in init_particle");
-	       exit(0);
-	     }
-
-             newpar.z = lamda * lz[k] + (1 - lamda) * lz[k + 1];
-
-             newpar.charge = par_charge;
-
-             newpar.i = i;
-             newpar.j = j;
-             newpar.k = k;
-             newpar.par_type = iptype;
-             newpar.seed = seed;
-             newpar.left_time = dt;
-	     select_kstate(&newpar, 0);
-             par_list[C_LINDEX_GHOST_ONE(i,j,k)].push_back(newpar);
-	 }
-       }
- }
+#include "particle_init.cpp"  // 粒子初始化相关的实现单独放入文件，便于阅读
 
 /*init the vectors according to device file, 
  * such as dopping density for donor and acceptor, 
@@ -4009,17 +3829,36 @@ void MeshQuantities::getInputData(char * FileName) {
   
   grid_file_name = fileReader.Get("gridFile", "lgrid.txt");
   
-  total_step = fileReader.Get("total_step", 100000);
+  total_step = fileReader.Get("total_step", 100000);  //总步长
 
-  electron_number = fileReader.Get("ElectronNumber", 100000);
-
+  /**
+   * @brief The initial total number of Electrons in the whole device.
+   * 
+   * @attention This value MUST be set large enough 
+   *  so that at least one electron exits in each grid cell according to electical neutrality. 
+   *
+   * Default Value: 100000 (1e6) 
+   */
+  electron_number = fileReader.Get("ElectronNumber", 100000);   
+  
+  /**
+   * @brief The initial total number of Holes in the whole device.
+   * 
+   * @attention This value MUST be set large enough 
+   *  so that at least one hole exits in each grid cell according to electical neutrality. 
+   *
+   * Default Value: 100000 (1e6) 
+   */
   hole_number = fileReader.Get("HoleNumber", 100000);
 
   device_file_name = fileReader.Get("device_file_name", "ldg.txt");
 
+  /**
+  * @brief Step of printing the simulation info for debugging
+  */
   debug_print_step= fileReader.Get("debug_print_step", 200);
 
-  valley_num = fileReader.Get("valley", 3);
+  valley_num = fileReader.Get("valley", 3);   //波谷数
 
   max_subband = fileReader.Get("subband", 3);
 
@@ -4031,7 +3870,7 @@ void MeshQuantities::getInputData(char * FileName) {
   my[0] = mt; my[1] = mt; my[2] = ml;
   mz[0] = ml; mz[1] = mt; mz[2] = mt;
 
-  Ncc = 2 * em0 * mt * eV0 / (PI * ec0 * hq0 * hq0); 
+  Ncc = 2 * em0 * mt * eV0 / (PI * ec0 * hq0 * hq0);  //二维的Nc 实际上的公式 (2 * m* kB * T)/(pi * hbar^2)
 
   for (int i = 0;i < valley_num; i ++){
     Nccc[i] = 2 * em0 * sqrt(mx[i] * my[i]) * eV0 / (PI * ec0 * hq0 * hq0);
@@ -4140,22 +3979,39 @@ void MeshQuantities::getInputData(char * FileName) {
   
   bs_path = dirname(path_buf) + string("/../input");
 
+  kloem_table_file = fileReader.Get("kloem_file", "kloem.txt");
+  kloab_table_file = fileReader.Get("kloab_file", "kloab.txt");
+  ktoem_table_file = fileReader.Get("ktoem_file", "ktoem.txt");
+  ktoab_table_file = fileReader.Get("ktoab_file", "ktoab.txt");
+  klaem_table_file = fileReader.Get("klaem_file", "klaem.txt");
+  klaab_table_file = fileReader.Get("klaab_file", "klaab.txt");
+
  
   
   //fileReader.ShowAll();
 }
 
 /** 
- * @brief 初始化物理参数
+ * @brief 初始化物理参数，注意这个参数写死了，要换模型的话得自己改代码
+ */
+/**
+ * @brief 初始化物理常量并做归一化，后续计算使用无量纲单位
+ * @param filename 供读取温度等输入文件
+ *
+ * 流程：
+ * 1) 设定材料开关（Si/GaAs）、质量密度、声速等本征参数；
+ * 2) 读取器件温度，按 k_B T 构造能量、动量、长度、时间等基准尺度；
+ * 3) 计算态密度 Nc、电流尺度 N_cur、量子势系数等归一化常数；
+ * 4) 把介电常数、表面散射参数等转换到无量纲。
  */
 void MeshQuantities::init_phpysical_parameter(char * filename) {
  
-  frickel=1.0;         
+  frickel=1.0;          // Frickel 参数，保持默认 1
 	
-  sifl = true;
-  gaasfl = false;
+  sifl = true;          // 使用硅材料
+  gaasfl = false;       // 未启用 GaAs
 
-  psi_si = 4.05;
+  psi_si = 4.05;        // Si 的功函数(eV)
 
   if(gaasfl)
     {
@@ -4181,53 +4037,53 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
     }
   //     get the material coefficients
   //____and normalize them
-  read_device_input_temperature(filename);
+  read_device_input_temperature(filename); // 从输入文件读取温度
   T0 = device_temperature;
   cout << "Tem: " << T0 << endl;
   Tn=T0/300.0;
 	
   //     energy [eV]/electon rest mass [kg]/Planck's constant [eVs] /
   //____electron charge [As]
-  eV0   =BOLTZ*T0;
-  em0   =EM;
-  hq0   =PLANCK;
-  ec0   =EC;
+  eV0   =BOLTZ*T0;   // 能量尺度 k_B T [eV]
+  em0   =EM;         // 电子质量 [kg]
+  hq0   =PLANCK;     // 普朗克常量 [eV*s]
+  ec0   =EC;         // 电子电荷 [C]
   //     momentum [eVs/m]/r-space [m]/k-space [1/m]/time [s] /
   //____velocity [m/s]
-  rmom0 =sqrt((em0/ec0)*eV0);
-  spr0  =hq0/rmom0;
-  spk0  =1.0/spr0;
-  time0 =hq0/eV0;     // h/k_BT
-  velo0 =spr0/time0;
-  cvr   =CLIGHT/velo0;
+  rmom0 =sqrt((em0/ec0)*eV0);  // 动量尺度
+  spr0  =hq0/rmom0;           // 长度尺度
+  spk0  =1.0/spr0;            // 波矢尺度
+  time0 =hq0/eV0;            // 时间尺度 (h/k_BT)
+  velo0 =spr0/time0;         // 速度尺度
+  cvr   =CLIGHT/velo0;       // 光速对应的无量纲数
   //____el. potential [V]/el. field [V/m]/concentration [1/m**3]
-  pot0  =eV0;       // [eV]
-  field0=pot0/spr0; // [eV/m]
-  conc0 =spk0*spk0*spk0;
+  pot0  =eV0;                // 电势尺度
+  field0=pot0/spr0;          // 电场尺度
+  conc0 =spk0*spk0*spk0;     // 浓度尺度
   //____mass density [kg/m**3]
-  dens0 =em0*conc0;
+  dens0 =em0*conc0;          // 质量密度尺度
 
   //____deformation potential constant [eV/m]/scattering rate [1/s]
-  dpc0  =field0;
-  scrt0 =1.0/time0;   // k_BT/h
+  dpc0  =field0;            // 应变势尺度
+  scrt0 =1.0/time0;         // 散射率尺度 k_BT/h  
 
   //____current [A/m]
   curr0 =ec0/time0;
 
   //effective density of state: 2.82 x 1e25 , aproximately
-  Nc = 2 * pow(1.08 * em0 * pot0 / (hq0 * hq0 * ec0 * 2 * PI), 1.5);
+  Nc = 2 * pow(1.08 * em0 * pot0 / (hq0 * hq0 * ec0 * 2 * PI), 1.5); // 有效态密度
 
-  N_cur = 2 * hq0 / (em0 * PI * PI) * pow((em0 * eV0) / (hq0 * hq0), 2) / ec0;
+  N_cur = 2 * hq0 / (em0 * PI * PI) * pow((em0 * eV0) / (hq0 * hq0), 2) / ec0; // 电流尺度 A/m^2
 
   //quantum potential coefficient
-  QuantumPotentialCoef=hq0 * hq0 * ec0 / (12.0 * 0.26 * em0 * spr0 * spr0 * pot0);
+  QuantumPotentialCoef=hq0 * hq0 * ec0 / (12.0 * 0.26 * em0 * spr0 * spr0 * pot0); // 量子势系数
      
 
   //____Si bulk parameters
-  sia0=sia0/spr0;
-  sirho=sirho/dens0;
-  siul=siul/velo0;
-  siut=siut/velo0;
+  sia0=sia0/spr0;      // 归一化晶格常数
+  sirho=sirho/dens0;   // 归一化质量密度
+  siul=siul/velo0;     // 归一化纵向声速
+  siut=siut/velo0;     // 归一化横向声速
 
   //____temperature dependent band gap
   if(T0<190.0)
@@ -4333,7 +4189,7 @@ void MeshQuantities::get_cube_range(ifstream &ifile, double * pos, int * index) 
 
 void MeshQuantities::read_device_file() {
 
-  cout << "device _file" << endl;
+  cout << " read device file" << endl;
   
   int index[6];
   double cube_pos[6];
@@ -4578,6 +4434,7 @@ void MeshQuantities::read_device_file() {
   region_type["VACUUM"] = VACUUM;
   region_type["OXIDE"] = OXIDE;
   region_type["SILICON"] = SILICON;
+  region_type["IGZO"] = IGZO;
 
   ifstream ifile;
   
@@ -4609,7 +4466,12 @@ void MeshQuantities::read_device_file() {
       if (cmd.int_param[0] == SILICON){
         cmd.int_param[1] = default_electron_num;
         cmd.int_param[2] = default_hole_num;
-      } else {
+      }
+      else if (cmd.int_param[0] == IGZO){
+        cmd.int_param[1] = default_electron_num;
+        cmd.int_param[2] = default_electron_num;
+      } 
+      else {
         cmd.int_param[1] = cmd.int_param[2] = 0;
       }
       break;
@@ -4697,8 +4559,8 @@ void MeshQuantities::read_device_file() {
       for (int i = 0;i < NumSurface; i ++){
         ifile >> surftype >> surfpos >> surfdir;
         SurfaceType[i] = surftype;  // 0: yz surface; 1: xz surface; 2: xy surface
-        SurfacePosition[i] = surfpos * 1e-9 / spr0;
-        SurfaceDir[i] = surfdir;
+        SurfacePosition[i] = surfpos * 1e-9 / spr0;  // 位置，转成内部无量纲长度
+        SurfaceDir[i] = surfdir;  // 法向方向（粒子进氧化层的方向）
       }
       break;
     case 17:

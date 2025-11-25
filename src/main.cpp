@@ -2,6 +2,13 @@
 
 int main(int argc, char *argv[])
 {
+
+  cout << "----------------------------------------------------" << endl;
+  cout << "-3D Monte Carlo Simulator for Semiconductor Devices-" << endl;
+  cout << "-    Developed by Chenglin Ye, Peking University   -" << endl;
+  cout << "-    Email:chenglinye18@gmail.com                  -" << endl;
+  cout << "-    Version: 1.0.0, 2025-11-01                    -" << endl;
+  cout << "----------------------------------------------------" << endl;
   
 #ifdef EPETRA_MPI
 
@@ -52,3 +59,4 @@ int main(int argc, char *argv[])
 
 return 0;
 }
+

@@ -42,6 +42,12 @@ def main():
     parser.add_argument("--current_file", type=Path)
     parser.add_argument("--contact", type=int, default=1, help="Contact index (icont)")
     parser.add_argument(
+        "--contacts",
+        type=int,
+        nargs="+",
+        help="Optional list of icont indices to plot together (overrides --contact).",
+    )
+    parser.add_argument(
         "--start_step",
         type=int,
         default=0,
@@ -54,23 +60,31 @@ def main():
     args = parser.parse_args()
 
     data = parse_current_file(args.current_file)
-    if args.contact not in data or len(data[args.contact]) == 0:
-        raise ValueError(f"No entries for contact {args.contact} in {args.current_file}")
-
-    filtered = [(s, v) for (s, v) in data[args.contact] if s >= args.start_step]
-    if not filtered:
-        raise ValueError(f"No entries for contact {args.contact} after start_step={args.start_step}")
-
-    steps, values = zip(*filtered)
+    contacts = args.contacts if args.contacts else [args.contact]
 
     plt.figure(figsize=(7, 4))
-    plt.plot(steps, values, marker="o", lw=1)
+    for ic in contacts:
+        if ic not in data or len(data[ic]) == 0:
+            print(f"[WARN] No entries for contact {ic} in {args.current_file}")
+            continue
+        filtered = [(s, v) for (s, v) in data[ic] if s >= args.start_step]
+        if not filtered:
+            print(f"[WARN] No entries for contact {ic} after start_step={args.start_step}")
+            continue
+        steps, values = zip(*filtered)
+        plt.plot(steps, values, marker="o", lw=1, label=f"Contact {ic}")
+
+    if not plt.gca().has_data():
+        raise ValueError("No valid contacts to plot.")
+
     plt.xlabel("Step")
     plt.ylabel("Current (A)")
     if args.ymin is not None or args.ymax is not None:
         plt.ylim(args.ymin, args.ymax)
-    title = args.title or f"Contact {args.contact} current"
+    title = args.title or "Contact current"
     plt.title(title)
+    if len(contacts) > 1:
+        plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(args.output, dpi=300)

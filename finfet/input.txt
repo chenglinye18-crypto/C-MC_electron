@@ -45,3 +45,11 @@ Flag_restart=0
 restart_step=0
 
 restart_filename=./data/par_info_restart0
+
+kloem_file = kloem.txt            # [Γ→L, electron]
+kloab_file = kloab.txt            # [Γ→L, hole]
+ktoem_file = ktoem.txt            # [Γ→X, electron]
+ktoab_file = ktoab.txt            # [Γ→X, hole]
+klaem_file = klaem.txt            # [Γ→Δ, electron]
+klaab_file = klaab.txt            # [Γ→Δ, hole]
+
