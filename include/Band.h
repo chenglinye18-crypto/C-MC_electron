@@ -4,12 +4,23 @@
 
 #include "Constant_GlobalVariable_MathFunction.h"
 #include "utils.h"
+#include <string>
+#include <vector>
 
 class Band
 {
     //    contains Name for each particle TYPE
     //CHARACTER*8 Typename[NumParType]
 public:
+    // 解析(类抛物线)模型开关与建表开关，仅作用于电子
+    bool use_analytic_band = false;
+    bool build_analytic_tables = true;
+
+    // 解析模型预留表：E-k、DOS、v-k（仅声明，后续填充）
+    std::vector<std::string> analytic_ek_table;
+    std::vector<std::string> analytic_dos_table;
+    std::vector<std::string> analytic_vk_table;
+
     char Typename[NumParType][9];
     //     number of scattering processes (electrons)
     int scpre;
@@ -440,6 +451,11 @@ public:
     double density_to_Ef(double dens) ;
     bool out_of_range(double Ef) ;
     void output_tet(int);
+    // 解析(类抛物线)模型建表接口（仅电子）：E-k、DOS、v-k
+    void BuildAnalyticTables(const string& path);
+    void BuildAnalyticEKTable(const string& path);
+    void BuildAnalyticDOSTable(const string& path);
+    void BuildAnalyticVKTable(const string& path);
 public :
     //    silicon to silicon oxide conduction band discontinuity
   double sioxbgo;

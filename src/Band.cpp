@@ -1,4 +1,7 @@
 #include "Band.h"
+#include <cmath>
+#include <fstream>
+#include <iomanip>
 
 void Band::VELOTET(void)
 {
@@ -23,11 +26,11 @@ void Band::VELOTET(void)
         m[3][1]=xkk[tet[3][it]]-xkk[tet[0][it]];
         m[3][2]=ykk[tet[3][it]]-ykk[tet[0][it]];
         m[3][3]=zkk[tet[3][it]]-zkk[tet[0][it]];
-        //      ..determinat  ����ʽ
-        //   [ x1,y1,z1]
-        //   [ x2,y2,z2]
-        //   [ x3,y3,z3]   det ��������ʽ��ֵ
-        det=m[1][1]*(m[2][2]*m[3][3]-m[3][2]*m[2][3])
+    //      ..determinat  ����ʽ
+    //   [ x1,y1,z1]
+    //   [ x2,y2,z2]
+    //   [ x3,y3,z3]   det ��������ʽ��ֵ
+    det=m[1][1]*(m[2][2]*m[3][3]-m[3][2]*m[2][3])
             -m[1][2]*(m[2][1]*m[3][3]-m[3][1]*m[2][3])
             +m[1][3]*(m[2][1]*m[3][2]-m[3][1]*m[2][2]);
 
@@ -4265,6 +4268,157 @@ void Band::BUILDLISTS(void)
     return;
 }
 
+//----------------------------------------------------------------------------//
+// 解析(类抛物线)模型：占位建表函数
+//----------------------------------------------------------------------------//
+void Band::BuildAnalyticTables(const string& path)
+{
+    // 清空缓存
+    analytic_ek_table.clear();
+    analytic_dos_table.clear();
+    analytic_vk_table.clear();
+
+    BuildAnalyticEKTable(path);
+    BuildAnalyticDOSTable(path);
+    BuildAnalyticVKTable(path);
+}
+
+void Band::BuildAnalyticEKTable(const string& path)
+{
+    // 写文件：按谷循环，记录谷底坐标、旋转矩阵、以及 E-k 行（仅相对 k）
+    // 相对k = (kx,ky,kz) 以谷底为原点；这里生成一个立方体网格 (k box)
+    ofstream fout(path + "/analytic_ek.txt");
+    fout << "# Analytic E-k table (Kane, relative k box, up to 7.5 eV)\n";
+    fout << "# k box: k in [-1,1] (step 0.1) in relative units around valley center\n";
+    fout << "# Columns: E(eV)  kx_rel  ky_rel  kz_rel\n";
+
+    double alpha_eV = 0.5;                    // 默认非抛物线因子 (1/eV)
+    double m_eff    = (melt>0 ? melt : 0.2);  // 取横向质量
+
+    double k_max = 1.0;
+    double k_step = 0.1;
+    int nk = static_cast<int>(k_max / k_step);
+
+    for (int v = 0; v < 6; ++v)
+    {
+        fout << "Valley " << v << "\n";
+        // 谷底在 Γ-X 方向 0.85*(2pi/a)，这里仅标注中心坐标（相对值仍以谷底为原点）
+        double a0pi_use = (a0pi == 0.0 ? 1.0 : a0pi);
+        double K0 = 0.85 * a0pi_use;
+        double centers[6][3] = {
+            { K0, 0, 0}, {-K0, 0, 0},
+            { 0, K0, 0}, { 0,-K0, 0},
+            { 0, 0, K0}, { 0, 0,-K0}
+        };
+        fout << "  Center " << centers[v][0] << " " << centers[v][1] << " " << centers[v][2] << "\n";
+        fout << "  Rotation\n";
+        fout << "    1 0 0\n    0 1 0\n    0 0 1\n";
+
+        for (int ix = -nk; ix <= nk; ++ix)
+        for (int iy = -nk; iy <= nk; ++iy)
+        for (int iz = -nk; iz <= nk; ++iz)
+        {
+            double kx = ix * k_step;
+            double ky = iy * k_step;
+            double kz = iz * k_step;
+            double k2 = kx*kx + ky*ky + kz*kz;
+            double par = k2 / (2.0 * m_eff);
+            double E;
+            if (alpha_eV > 0)
+            {
+                double disc = 1.0 + 4.0 * alpha_eV * par;
+                E = (-1.0 + std::sqrt(disc)) / (2.0 * alpha_eV); // eV
+            }
+            else
+            {
+                E = par;
+            }
+            if (E > 7.5) continue; // 只保留 0~7.5 eV
+
+            fout << std::fixed << std::setprecision(6)
+                 << E << " " << kx << " " << ky << " " << kz << "\n";
+        }
+        fout << "EndValley\n";
+    }
+    fout.close();
+}
+
+void Band::BuildAnalyticDOSTable(const string& path)
+{
+    ofstream fout(path + "/analytic_dos.txt");
+    fout << "# Analytic DOS table (Kane, relative, up to 7.5 eV)\n";
+    fout << "# Columns: E(eV)  DOS(rel)\n";
+
+    double alpha_eV = 0.5;
+    double ml = (mell>0 ? mell : 0.92);
+    double mt = (melt>0 ? melt : 0.19);
+    double m_dos = std::pow(ml*mt*mt, 1.0/3.0);
+    int N_valley = 6;
+
+    double E_max = 7.5;
+    double dE    = 0.01;
+    int steps    = static_cast<int>(E_max/dE);
+
+    for (int i = 0; i <= steps; ++i)
+    {
+        double E = i * dE;
+        double gamma = E * (1.0 + alpha_eV * E);
+        double dos = N_valley * (1.0/(2.0*PI*PI)) *
+                     std::pow(2.0*m_dos, 1.5) *
+                     std::sqrt(std::max(0.0, gamma)) *
+                     (1.0 + 2.0*alpha_eV*E);
+        fout << std::fixed << std::setprecision(6)
+             << E << " " << dos << "\n";
+    }
+    fout.close();
+}
+
+void Band::BuildAnalyticVKTable(const string& path)
+{
+    ofstream fout(path + "/analytic_vk.txt");
+    fout << "# Analytic v-k table (Kane, relative, k box [-1,1] step 0.1)\n";
+    fout << "# Columns: kx_rel ky_rel kz_rel  vx vy vz\n";
+
+    double alpha_eV = 0.5;
+    double m_eff = (melt>0 ? melt : 0.2);
+
+    double k_max = 1.0;
+    double k_step = 0.1;
+    int nk = static_cast<int>(k_max / k_step);
+
+    for (int ix = -nk; ix <= nk; ++ix)
+    for (int iy = -nk; iy <= nk; ++iy)
+    for (int iz = -nk; iz <= nk; ++iz)
+    {
+        double kx = ix * k_step;
+        double ky = iy * k_step;
+        double kz = iz * k_step;
+        double k2 = kx*kx + ky*ky + kz*kz;
+        double par = k2 / (2.0 * m_eff);
+        double E, vx, vy, vz;
+        if (alpha_eV > 0)
+        {
+            double disc = 1.0 + 4.0 * alpha_eV * par;
+            E = (-1.0 + std::sqrt(disc)) / (2.0 * alpha_eV); // eV
+        }
+        else
+        {
+            E = par;
+        }
+        if (E > 7.5) continue; // 只保留 0~7.5 eV
+
+        double vel_pref = 1.0 / (m_eff * (1.0 + 2.0 * alpha_eV * E));
+        vx = kx * vel_pref;
+        vy = ky * vel_pref;
+        vz = kz * vel_pref;
+
+        fout << std::fixed << std::setprecision(6)
+             << kx << " " << ky << " " << kz << "  "
+             << vx << " " << vy << " " << vz << "\n";
+    }
+    fout.close();
+}
+
 /**
  * @brief process electron scattering command 
  */
@@ -4283,10 +4437,27 @@ void Band::IELEC(string path)
     //Typename[POXEL]="oxidelec";
 
     pathname = path;
+
+    // 启动解析(类抛物线)模型分支
+    use_analytic_band = true;
+    build_analytic_tables = true;
     
     typemat[PELEC]=SILICON;
     typemat[PHOLE]=SILICON;
     typemat[POXEL]=OXIDE;
+
+    // 解析(类抛物线)模型分支：仅对电子启用
+    // 目前仅占位：构建 E-k / DOS / v-k 三个表，暂不实现具体算法
+    if (use_analytic_band)
+    {
+        if (build_analytic_tables)
+        {
+            BuildAnalyticTables(path);
+        }
+        // 后续：可在此处初始化注入/散射表等
+        init_inject_and_density_table();
+        return; // 跳过全能带读取流程
+    }
 
     //____set values for energy discretization [0:MTAB] -> [emin,emax]
     dtable=0.0010/eV0;              // 能量表中每份的值
