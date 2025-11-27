@@ -71,6 +71,10 @@ void MeshQuantities::MultipleRefresh(){
   c_desired_electron_number->ExtractView(&e_num);
   c_desired_hole_number->ExtractView(&h_num);
 
+  long local_before_total = 0;
+  long local_after_total = 0;
+  long local_zero_desired = 0;
+
 
   for (i = c_ibegin; i <= c_iend; i ++)
     for (k = c_kbegin; k <= c_kend; k ++)
@@ -97,8 +101,11 @@ void MeshQuantities::MultipleRefresh(){
 
           new_ele_num = e_num[C_LINDEX_GHOST_ONE(i,j,k)]; 
           new_hole_num = h_num[C_LINDEX_GHOST_ONE(i,j,k)]; 
+          if ((new_ele_num + new_hole_num) == 0)
+            local_zero_desired ++;
 
 	  before_num = c_par_list->size();
+          local_before_total += before_num;
 
 	  c_par_list->clear();
 
@@ -119,5 +126,18 @@ void MeshQuantities::MultipleRefresh(){
 	    }
 
 	  mr_gen_num += (c_par_list->size() - before_num);
+          local_after_total += c_par_list->size();
 	}
+
+  long global_before_total = 0, global_after_total = 0, global_zero_desired = 0;
+  MPI_Allreduce(&local_before_total, &global_before_total, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&local_after_total, &global_after_total, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&local_zero_desired, &global_zero_desired, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+  if (mpi_rank == 0)
+    cout << "[MR] step " << step
+         << " before=" << global_before_total
+         << " after=" << global_after_total
+         << " zero_desired_cells=" << global_zero_desired
+         << endl;
 }

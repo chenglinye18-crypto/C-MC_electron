@@ -10,11 +10,19 @@ void MeshQuantities::HolePhononScatter()
     double drand,dscat;
     double sca[MNScaHole*NBH],scasum;
 
-    //only holes are allowed in this routine
-    if(par_type!=PHOLE)
+    // Only holes are allowed in this routine. If we get anything else,
+    // dump details and abort (original behavior) so we can locate the bad particle.
+    if (par_type != PHOLE)
     {
-
-        cout<<"error HSCTR: Wrong particle type";exit(0);
+        cerr << "error HSCTR: Wrong particle type"
+             << " par_type=" << par_type
+             << " par_id=" << par_id
+             << " cell=(" << icell << ',' << jcell << ',' << kcell << ')'
+             << " itet=" << itet
+             << " iband=" << iband
+             << endl;
+        dump_par_info();
+        exit(0);
     }
     //save intial band
     ibold=iband;
