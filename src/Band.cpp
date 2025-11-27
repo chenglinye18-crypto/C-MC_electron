@@ -1845,6 +1845,44 @@ void Band::BUILDPHSCATT(void)    //(cscat)
         }                        //ENDDO
     }                            //ENDDO
 
+    // 打印各类电子散射归一化最大散射率，便于与解析模式比较
+    {
+        static const char* scat_names[] = {
+            "Elastic (intra-valley)",
+            "TA g Abs", "TA g Em",
+            "LA g Abs", "LA g Em",
+            "LO g Abs", "LO g Em",
+            "TA f Abs", "TA f Em",
+            "LA f Abs", "LA f Em",
+            "TO f Abs", "TO f Em",
+            "Impact Ionization"
+        };
+        vector<double> max_scat(scpre, 0.0);
+
+        // 0..scpre-2: 声子散射 (scatte*dose)
+        for(itab=0;itab<=MTAB;itab++) {
+            for(iinital=0;iinital<nband[ipt];iinital++) {
+                for(ifinal=0;ifinal<nband[ipt];ifinal++) {
+                    for(iscat=0;iscat<scpre-1;iscat++) {
+                        double rate = scatte[iscat][ifinal][iinital]
+                                      *dose[iscat][ifinal][itab];
+                        if (rate > max_scat[iscat]) max_scat[iscat] = rate;
+                    }
+                    // scpre-1 视作 II
+                    double rate_ii = scattiie[ifinal][iinital][itab];
+                    if (rate_ii > max_scat[scpre-1]) max_scat[scpre-1] = rate_ii;
+                }
+            }
+        }
+
+        cout << "Max normalized electron scattering rates (tabulated band):" << endl;
+        for(int i=0;i<scpre;i++) {
+            const char* nm = (i < (int)(sizeof(scat_names)/sizeof(scat_names[0])))
+                             ? scat_names[i] : "Unknown";
+            cout << "  [" << i << "] " << nm << " : " << max_scat[i] << endl;
+        }
+    }
+
     //  ..holes
     ipt=PHOLE;
     for(itab=0;itab<=MTAB;itab++)
@@ -4436,10 +4474,46 @@ void Band::IELEC(string path)
         alpha_norm = alpha_val * eV0;
 
         // 先生成解析能带文件，再读取并建索引表
-        InitAnalyticBand(alpha_norm, mell, melt, path);
+        //InitAnalyticBand(alpha_norm, mell, melt, path);
         ReadAnalyticData(path);
         BuildAnalyticLists();
-        // 后续散射率表等由后面步骤再接入
+        //InitPhononSpectrum(path);
+        BuildAnalyticScatteringTable();
+
+        // ---------------------------------------------------------
+        // 4. 补充初始化：物理常数与本征载流子浓度
+        // ---------------------------------------------------------
+        cout << "  Initializing physical constants and Ni..." << endl;
+
+        // Si/SiO2 导带势垒高度 (约 3.2 eV)
+        sioxbgo = 3.2 / eV0; 
+
+        // 肖特基势垒降低系数 (沿用原有系数形式并做归一化)
+        beta = 2.15e-5 / eV0 * sqrt(field0);
+
+        // 表面漫散射概率
+        difpr[PELEC] = 0.16; 
+        difpr[PHOLE] = 0.35; 
+        difpr[POXEL] = 0.16;
+
+        // 碰撞电离系数占位
+        iifacelec = 0.16;
+
+        // 本征载流子浓度: ni = A_ref * T^1.5 * exp(-Eg/2kT)
+        double A_ref = 3.87e16; // cm^-3 K^-1.5
+        double Ni_real_cm3 = A_ref * pow(T0, 1.5) * exp(-sieg / 2.0);
+
+        // cm^-3 -> m^-3，再归一化
+        Ni = Ni_real_cm3 * 1.0e6 / conc0;
+
+        cout << "  Ni calculated: " << Ni_real_cm3 << " cm^-3 (Normalized: " << Ni << ")" << endl;
+        cout << "  Band gap (sieg): " << sieg * eV0 << " eV" << endl;
+
+        // 构建并读取解析注入/密度表
+        //BuildAnalyticInjectionTable();
+        ReadAnalyticInjectionTable();
+
+        //ExportAnalyticScattering(path);
         return;
     }
 
@@ -4559,4 +4633,61 @@ void Band::output_tet(int itet) {
 	 << ykk[tet[i][itet]] << ','
 	 << zkk[tet[i][itet]] << ')' << endl;
 
+}
+
+/**
+ * @brief 导出解析散射率到文件 (用于 Python 绘图检查)
+ * 输出单位: 1/s (SI)
+ * 分组: Total, Acoustic, IV_g_ems, IV_g_abs, IV_f_ems, IV_f_abs
+ */
+void Band::ExportAnalyticScattering(string output_path) {
+    string filename = output_path + "/scattering_rates_check.txt";
+    cout << "Exporting scattering rates to: " << filename << endl;
+
+    ofstream out(filename.c_str());
+    if (!out) {
+        cerr << "Error: Cannot open export file." << endl;
+        return;
+    }
+
+    out << "Energy(eV) Total(1/s) Acoustic(1/s) IV_g_ems(1/s) IV_g_abs(1/s) IV_f_ems(1/s) IV_f_abs(1/s)" << endl;
+
+    int band_idx = bandof[PELEC];
+    double max_E_eV = 2.0;
+
+    for (int itab = 0; itab <= MTAB; ++itab) {
+        double E_norm = energy[itab];
+        double E_eV = E_norm * eV0;
+        if (E_eV > max_E_eV) break;
+
+        double rate_total = sumscatt[itab][band_idx] / time0;
+        double rate_ac = dose[0][band_idx][itab] / time0;
+
+        double rate_g_ems = 0.0;
+        double rate_g_abs = 0.0;
+        double rate_f_ems = 0.0;
+        double rate_f_abs = 0.0;
+
+        for (int i = 1; i <= 6; ++i) {
+            double r = dose[i][band_idx][itab] / time0;
+            if (i % 2 == 0) rate_g_ems += r;
+            else            rate_g_abs += r;
+        }
+        for (int i = 7; i <= 12; ++i) {
+            double r = dose[i][band_idx][itab] / time0;
+            if (i % 2 == 0) rate_f_ems += r;
+            else            rate_f_abs += r;
+        }
+
+        out << E_eV << " "
+            << rate_total << " "
+            << rate_ac << " "
+            << rate_g_ems << " "
+            << rate_g_abs << " "
+            << rate_f_ems << " "
+            << rate_f_abs << endl;
+    }
+
+    out.close();
+    cout << "  Done." << endl;
 }

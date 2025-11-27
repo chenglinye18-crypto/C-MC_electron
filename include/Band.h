@@ -450,6 +450,11 @@ public :
   
   void IELEC(string);
   void InitAnalyticBand(double alpha_norm, double ml_norm, double mt_norm, string input_path);
+  void InitPhononSpectrum(string input_path);
+  void BuildAnalyticScatteringTable();
+  void ExportAnalyticScattering(string output_path);
+  void BuildAnalyticInjectionTable();
+  void ReadAnalyticInjectionTable();
 
   // ---------------- Analytic band support ----------------
   struct AnalyticKPoint {
@@ -467,6 +472,22 @@ public :
 
   void ReadAnalyticData(string input_path);
   void BuildAnalyticLists();
+  double GetKaneK_SI(double E_eV);
+  double GetKaneDOS_SI(double E_eV);
+  double GetOverlapFactor(double q, double Rs);
+  double GetPhononOmega(int branch, double q);
+
+  // ---------------- Phonon spectrum (table-driven) ---------------
+  struct PhononSpectrum {
+      double a0 = 0.0;
+      double qmax = 0.0;
+      double dq = 0.0;
+      int nq_tab = 0;
+      std::vector<double> omega_table[4];
+      std::vector<double> vg_table[4];
+  };
+
+  PhononSpectrum phonon;
   
 };
 
