@@ -6,3 +6,6 @@ finfet/main
 finfet/*.log
 finfet/data/
 finfet/process.log
+input/analytic_ek.txt
+input/analytic_dos.txt
+.deps/

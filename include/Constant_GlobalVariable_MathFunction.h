@@ -57,6 +57,7 @@ extern double T0,eV0,em0,hq0,ec0,rmom0,spr0,spk0,time0,velo0;
 extern double cvr,pot0,field0,conc0,dens0,dpc0,scrt0,curr0, Nc, Ncc, psi_si, phi_top, N_cur;
 extern double mx[3], my[3], mz[3], Nccc[3];
 extern double ml, mt;
+extern double alpha, alpha_norm;
 
 //physical constants:
 //	ec     = electron charge         [ A*s ]

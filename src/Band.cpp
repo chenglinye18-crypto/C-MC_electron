@@ -4428,8 +4428,22 @@ void Band::IELEC(string path)
         */
     }                            //ENDIF
 
-    //____read bandstruc-values from files
+    //____read bandstruc-values from files or analytic model
+    use_analytic_band = true;
+    if (use_analytic_band)
+    {
+        double alpha_val = 0.5; // 1/eV
+        alpha_norm = alpha_val * eV0;
 
+        // 先生成解析能带文件，再读取并建索引表
+        InitAnalyticBand(alpha_norm, mell, melt, path);
+        ReadAnalyticData(path);
+        BuildAnalyticLists();
+        // 后续散射率表等由后面步骤再接入
+        return;
+    }
+
+    //____fallback to tabulated band structure
     READBS();   // READ_BS
 
     //____build lists for finding states in k-space

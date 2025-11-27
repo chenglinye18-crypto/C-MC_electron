@@ -4041,6 +4041,10 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   T0 = device_temperature;
   cout << "Tem: " << T0 << endl;
   Tn=T0/300.0;
+  // 初始参数（后续可改为从 input 文件读取）
+  double ml_val = 0.916;   // 纵向有效质量（相对 m0）
+  double mt_val = 0.19;    // 横向有效质量（相对 m0）
+  double alpha_val = 0.5;  // 非抛物线性系数 (1/eV)
 	
   //     energy [eV]/electon rest mass [kg]/Planck's constant [eVs] /
   //____electron charge [As]
@@ -4062,6 +4066,12 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   conc0 =spk0*spk0*spk0;     // 浓度尺度
   //____mass density [kg/m**3]
   dens0 =em0*conc0;          // 质量密度尺度
+
+  // 归一化有效质量与非抛物线参数
+  ml = ml_val;
+  mt = mt_val;
+  alpha = alpha_val * eV0;
+  alpha_norm = alpha;
 
   //____deformation potential constant [eV/m]/scattering rate [1/s]
   dpc0  =field0;            // 应变势尺度

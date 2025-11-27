@@ -11,6 +11,7 @@ double my[3];
 double mz[3];
 double Nccc[3];
 double ml, mt;
+double alpha = 0.0, alpha_norm = 0.0;
 
 double cvr,pot0,field0,conc0,dens0,dpc0,scrt0,curr0;
 
@@ -116,4 +117,3 @@ double Max(double p1,double p2)
     }
     return a;
 }
-

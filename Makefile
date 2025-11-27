@@ -203,12 +203,12 @@ AUTOMAKE = automake-1.13
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O0 -I/home/ic/trilinos_install/include
+CFLAGS = -I/home/ic/trilinos_install/include
 CPP = gcc -E
 CPPFLAGS = 
 CXX = mpicxx
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O0 -I/home/ic/trilinos_install/include
+CXXFLAGS = -I/home/ic/trilinos_install/include
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -227,7 +227,7 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = -no-pie
 LIBOBJS = 
-LIBS = -L/home/ic/trilinos_install/lib -lnoxepetra -lnox -lifpack -lml -ltriutils -laztecoo -lamesos -lepetra -lepetraext -lteuchoscomm -lteuchosparameterlist -lteuchoscore -lteuchosremainder -lteuchosnumerics -lgfortran -lm 	/usr/lib/x86_64-linux-gnu/liblapack.so /usr/lib/x86_64-linux-gnu/libblas.so
+LIBS = -L/home/ic/trilinos_install/lib -lnoxepetra -lnox -lifpack -lml -ltriutils -laztecoo -lamesos -lepetra -lepetraext -lteuchoscomm -lteuchosparameterlist -lteuchoscore -lteuchosremainder -lteuchosnumerics -lgfortran -lm /usr/lib/x86_64-linux-gnu/liblapack.so /usr/lib/x86_64-linux-gnu/libblas.so
 LN_S = ln -s
 LTLIBOBJS = 
 MAKEINFO = makeinfo

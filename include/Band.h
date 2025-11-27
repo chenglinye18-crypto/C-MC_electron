@@ -4,6 +4,7 @@
 
 #include "Constant_GlobalVariable_MathFunction.h"
 #include "utils.h"
+#include <vector>
 
 class Band
 {
@@ -278,6 +279,7 @@ public:
     double melt;
     //    DOS mass in the minimum of the first conduction band
     double meld;
+    bool use_analytic_band = false;
     //    temperature of the transversal acoustic g-phonon (electrons)
     double temptag;
     //    temperature of the longitudinal acoustic g-phonon (electrons)
@@ -447,6 +449,24 @@ public :
   double beta;
   
   void IELEC(string);
+  void InitAnalyticBand(double alpha_norm, double ml_norm, double mt_norm, string input_path);
+
+  // ---------------- Analytic band support ----------------
+  struct AnalyticKPoint {
+      double kx, ky, kz;   // 归一化波矢
+      double energy;       // 归一化能量
+      double velocity;     // 归一化速度模长
+      double weight;       // 网格权重
+      int valley_index;    // 能谷索引
+  };
+
+  std::vector<AnalyticKPoint> analytic_k_grid;
+  std::vector<int> analytic_ntlist;
+  std::vector<int> analytic_ptlist;
+  std::vector<int> analytic_tlist;
+
+  void ReadAnalyticData(string input_path);
+  void BuildAnalyticLists();
   
 };
 

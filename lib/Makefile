@@ -102,7 +102,7 @@ am_main_OBJECTS = main.$(OBJEXT) mcmodel.$(OBJEXT) utils.$(OBJEXT) \
 	ElectronPhononScatter.$(OBJEXT) \
 	ElectronImpurityScatter.$(OBJEXT) \
 	Constant_GlobalVariable_MathFunction.$(OBJEXT) \
-	CellHit.$(OBJEXT) Band.$(OBJEXT) heat.$(OBJEXT) \
+	CellHit.$(OBJEXT) analyticband.$(OBJEXT) Band.$(OBJEXT) heat.$(OBJEXT) \
 	myStatistic.$(OBJEXT) fermi_int.$(OBJEXT)
 main_OBJECTS = $(am_main_OBJECTS)
 main_LDADD = $(LDADD)
@@ -224,7 +224,7 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = -no-pie
 LIBOBJS = 
-LIBS = -L/home/ic/trilinos_install/lib -lnoxepetra -lnox -lifpack -lml -ltriutils -laztecoo -lamesos -lepetra -lepetraext -lteuchoscomm -lteuchosparameterlist -lteuchoscore -lteuchosremainder -lteuchosnumerics -lgfortran -lm 	/usr/lib/x86_64-linux-gnu/liblapack.so /usr/lib/x86_64-linux-gnu/libblas.so
+LIBS = -L/home/ic/trilinos_install/lib -lnoxepetra -lnox -lifpack -lml -ltriutils -laztecoo -lamesos -lepetra -lepetraext -lteuchoscomm -lteuchosparameterlist -lteuchoscore -lteuchosremainder -lteuchosnumerics -lgfortran -lm /usr/lib/x86_64-linux-gnu/liblapack.so /usr/lib/x86_64-linux-gnu/libblas.so
 LN_S = ln -s
 LTLIBOBJS = 
 MAKEINFO = makeinfo
@@ -306,12 +306,13 @@ main_SOURCES = $(src_dir)/main.cpp \
 	     $(src_dir)/TetHit.cpp \
              $(src_dir)/set_user_defined_data.cpp  $(src_dir)/PoissonSolver.cpp \
              $(src_dir)/ParticleUtils.cpp \
-             $(src_dir)/ParSurfaceScatter.cpp \
+	     $(src_dir)/ParSurfaceScatter.cpp \
              $(src_dir)/MultipleRefresh.cpp \
-             $(src_dir)/HolePhononScatter.cpp \
+	     $(src_dir)/HolePhononScatter.cpp \
              $(src_dir)/GetSurfRoughnessPhononScRate.cpp $(src_dir)/erf.cpp \
              $(src_dir)/ElectronPhononScatter.cpp \
              $(src_dir)/ElectronImpurityScatter.cpp \
+             $(src_dir)/analyticband.cpp \
 	     $(src_dir)/Constant_GlobalVariable_MathFunction.cpp \
 	     $(src_dir)/CellHit.cpp \
 	     $(src_dir)/Band.cpp \
@@ -678,6 +679,13 @@ Band.obj: $(src_dir)/Band.cpp
 #	$(AM_V_CXX)source='$(src_dir)/Band.cpp' object='Band.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(AM_V_CXX_no)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o Band.obj `if test -f '$(src_dir)/Band.cpp'; then $(CYGPATH_W) '$(src_dir)/Band.cpp'; else $(CYGPATH_W) '$(srcdir)/$(src_dir)/Band.cpp'; fi`
+analyticband.o: $(src_dir)/analyticband.cpp
+	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT analyticband.o -MD -MP -MF $(DEPDIR)/analyticband.Tpo -c -o analyticband.o `test -f '$(src_dir)/analyticband.cpp' || echo '$(srcdir)/'`$(src_dir)/analyticband.cpp
+	$(AM_V_at)$(am__mv) $(DEPDIR)/analyticband.Tpo $(DEPDIR)/analyticband.Po
+
+analyticband.obj: $(src_dir)/analyticband.cpp
+	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT analyticband.obj -MD -MP -MF $(DEPDIR)/analyticband.Tpo -c -o analyticband.obj `if test -f '$(src_dir)/analyticband.cpp'; then $(CYGPATH_W) '$(src_dir)/analyticband.cpp'; else $(CYGPATH_W) '$(srcdir)/$(src_dir)/analyticband.cpp'; fi`
+	$(AM_V_at)$(am__mv) $(DEPDIR)/analyticband.Tpo $(DEPDIR)/analyticband.Po
 
 heat.o: $(src_dir)/heat.cpp
 	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT heat.o -MD -MP -MF $(DEPDIR)/heat.Tpo -c -o heat.o `test -f '$(src_dir)/heat.cpp' || echo '$(srcdir)/'`$(src_dir)/heat.cpp
