@@ -4467,7 +4467,7 @@ void Band::IELEC(string path)
     }                            //ENDIF
 
     //____read bandstruc-values from files or analytic model
-    use_analytic_band = true;
+    use_analytic_band = false;
     if (use_analytic_band)
     {
         double alpha_val = 0.5; // 1/eV
@@ -4476,6 +4476,7 @@ void Band::IELEC(string path)
         // 先生成解析能带文件，再读取并建索引表
         //InitAnalyticBand(alpha_norm, mell, melt, path);
         ReadAnalyticData(path);
+        InitAxisLookupTable();
         BuildAnalyticLists();
         //InitPhononSpectrum(path);
         BuildAnalyticScatteringTable();

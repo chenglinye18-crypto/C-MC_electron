@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cstdlib>
+#include "mcmodel.h"
 
 // branch index helpers for phonon table
 static const int PH_LA = 0;
@@ -39,7 +40,7 @@ std::vector<double> GenerateNonUniformTicks() {
     double step_coarse = 0.1; // 粗网格步长
     double step_fine = 0.01;  // 细网格步长
 
-    while (current <= k_end + 0) {
+    while (current <= k_end + 1e-5) {
         ticks.push_back(current);
         
         double abs_k = std::fabs(current);
@@ -96,120 +97,107 @@ double CalculateAnalyticDOS_Real(double E_eV, double alpha_eV, double ml_rel, do
 // -----------------------------------------------------------------------------
 
 void Band::InitAnalyticBand(double alpha_norm, double ml_rel, double mt_rel, string input_path) {
-    std::cout << "Initializing Analytic Band (Kane's Model - Gamma-X Only)..." << std::endl;
+    cout << "Initializing Analytic Band (Kane's Model - Vector V)..." << endl;
 
-    // 1. 物理常数准备 (用于生成 Output 表格，SI 单位)
-    double m0 = 9.10938356e-31; // kg
-    double hbar = 1.0545718e-34; // J*s
-    double q = 1.60217662e-19;   // C
-    double a_lattice = 5.43e-10; // Si 晶格常数 (m)
+    // 1. 物理常数 (SI)
+    double m0 = 9.10938356e-31; 
+    double hbar = 1.0545718e-34; 
+    double q = 1.60217662e-19;   
+    double a_lattice = 5.43e-10; 
 
-    // 恢复 alpha 到真实单位 (1/eV)
-    double alpha_real = 0.5; 
-
-    // 质量 (kg)
+    // 参数
+    double alpha_real = 0.5; // 1/eV
     double ml_kg = ml_rel * m0;
     double mt_kg = mt_rel * m0;
 
     // 波谷配置
     double K_valley_norm = 1.7; 
     double valley_dirs[6][3] = {
-        {1,0,0}, {-1,0,0}, 
-        {0,1,0}, {0,-1,0}, 
-        {0,0,1}, {0,0,-1}  
+        {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
     };
     int valley_l_axis[6] = {0, 0, 1, 1, 2, 2};
 
     // ----------------------------------------------------------
-    // 2. 生成 E-k-v 表 (analytic_ek.txt)
+    // 2. 生成 E-k-v 表
     // ----------------------------------------------------------
     string ek_file = input_path + "/analytic_ek.txt";
     ofstream out_ek(ek_file.c_str());
-    
-    // 表头: 坐标(pi/a) 能量(eV) 速度模长(m/s)
-    out_ek << "kx(pi/a) ky(pi/a) kz(pi/a) Energy(eV) Velocity(m/s)" << endl;
-    
-    // 生成非均匀网格
-    std::vector<double> ticks = GenerateNonUniformTicks();
-    int num_ticks = ticks.size();
-    
-    cout << "  Generating E-k table with grid size: " << num_ticks << "^3 points..." << endl;
+    out_ek << "kx(pi/a) ky(pi/a) kz(pi/a) Energy(eV) vx(m/s) vy(m/s) vz(m/s)" << endl;
 
-    // 单位转换系数: k(pi/a) -> k(1/m)
-    double k_conversion = PI / a_lattice;
+    vector<double> ticks = GenerateNonUniformTicks();
+    int num_ticks = ticks.size();
+    cout << "  Generating E-k-v table with " << num_ticks << "^3 points..." << endl;
+
+    double k_conversion = PI / a_lattice; // pi/a -> 1/m
     double J_to_eV = 1.0 / q;
 
     for (int i = 0; i < num_ticks; i++) {
         for (int j = 0; j < num_ticks; j++) {
             for (int k = 0; k < num_ticks; k++) {
-                // 当前全局坐标 (pi/a)
                 double gx = ticks[i];
                 double gy = ticks[j];
                 double gz = ticks[k];
-                
-                // --- 第一步：找到最近的波谷 ---
+
+                // 1) 最近波谷
                 int best_valley = 0;
                 double min_dist_sq = 1.0e99;
-                double dx_best=0, dy_best=0, dz_best=0; // 相对坐标 (pi/a)
-                
+                double dx_best = 0.0, dy_best = 0.0, dz_best = 0.0;
                 for (int v = 0; v < 6; v++) {
                     double cx = valley_dirs[v][0] * K_valley_norm;
                     double cy = valley_dirs[v][1] * K_valley_norm;
                     double cz = valley_dirs[v][2] * K_valley_norm;
-                    
-                    double dx = gx - cx;
-                    double dy = gy - cy;
-                    double dz = gz - cz;
-                    
-                    double dist_sq = dx*dx + dy*dy + dz*dz;
+                    double dist_sq = (gx-cx)*(gx-cx) + (gy-cy)*(gy-cy) + (gz-cz)*(gz-cz);
                     if (dist_sq < min_dist_sq) {
                         min_dist_sq = dist_sq;
                         best_valley = v;
-                        dx_best = dx; dy_best = dy; dz_best = dz;
+                        dx_best = gx - cx;
+                        dy_best = gy - cy;
+                        dz_best = gz - cz;
                     }
                 }
-                
-                // --- 第二步：转换到局部坐标系 (Longitudinal / Transversal) ---
+
+                // 2) 局部坐标 (真实单位)
                 double dkx_real = dx_best * k_conversion;
                 double dky_real = dy_best * k_conversion;
                 double dkz_real = dz_best * k_conversion;
-                
-                double kl_real = 0.0; 
-                double kt2_real = 0.0; 
-                
+
+                double kl = 0.0, kt1 = 0.0, kt2 = 0.0;
                 int l_axis = valley_l_axis[best_valley];
-                
-                if (l_axis == 0) { 
-                    kl_real = dkx_real;
-                    kt2_real = dky_real*dky_real + dkz_real*dkz_real;
-                } else if (l_axis == 1) { 
-                    kl_real = dky_real;
-                    kt2_real = dkx_real*dkx_real + dkz_real*dkz_real;
-                } else { 
-                    kl_real = dkz_real;
-                    kt2_real = dkx_real*dkx_real + dky_real*dky_real;
+                if (l_axis == 0) { // X
+                    kl = dkx_real; kt1 = dky_real; kt2 = dkz_real;
+                } else if (l_axis == 1) { // Y
+                    kl = dky_real; kt1 = dkx_real; kt2 = dkz_real;
+                } else { // Z
+                    kl = dkz_real; kt1 = dkx_real; kt2 = dky_real;
                 }
-                
-                // --- 第三步：计算能量 E ---
-                double Gamma_J = (hbar * hbar / 2.0) * ( (kl_real*kl_real)/ml_kg + kt2_real/mt_kg );
+
+                // 3) 能量
+                double Gamma_J = (hbar*hbar/2.0) * ( (kl*kl)/ml_kg + (kt1*kt1 + kt2*kt2)/mt_kg );
                 double Gamma_eV = Gamma_J * J_to_eV;
-                
-                double E_val = (-1.0 + std::sqrt(1.0 + 4.0 * alpha_real * Gamma_eV)) / (2.0 * alpha_real);
-                
-                // --- 第四步：计算速度 v ---
-                double term_l = (kl_real * kl_real) / (ml_kg * ml_kg);
-                double term_t = kt2_real / (mt_kg * mt_kg);
-                
-                double v_prefactor = hbar / (1.0 + 2.0 * alpha_real * E_val); 
-                double v_mag = v_prefactor * std::sqrt(term_l + term_t);
-                
-                // 输出数据
-                out_ek << gx << " " << gy << " " << gz << " " << E_val << " " << v_mag << endl;
+                double E_val = (-1.0 + sqrt(1.0 + 4.0 * alpha_real * Gamma_eV)) / (2.0 * alpha_real);
+
+                // 4) 速度矢量
+                double v_prefactor = hbar / (1.0 + 2.0 * alpha_real * E_val);
+                double vl_vel  = v_prefactor * (kl  / ml_kg);
+                double vt1_vel = v_prefactor * (kt1 / mt_kg);
+                double vt2_vel = v_prefactor * (kt2 / mt_kg);
+
+                double vx = 0.0, vy = 0.0, vz = 0.0;
+                if (l_axis == 0) {       // X Valley
+                    vx = vl_vel; vy = vt1_vel; vz = vt2_vel;
+                } else if (l_axis == 1) { // Y Valley
+                    vx = vt1_vel; vy = vl_vel; vz = vt2_vel;
+                } else {                 // Z Valley
+                    vx = vt1_vel; vy = vt2_vel; vz = vl_vel;
+                }
+
+                out_ek << gx << " " << gy << " " << gz << " "
+                       << E_val << " " << vx << " " << vy << " " << vz << endl;
             }
         }
     }
     out_ek.close();
-    cout << "  E-k table generated: " << ek_file << endl;
+    cout << "  E-k-v table generated: " << ek_file << endl;
 
     // ----------------------------------------------------------
     // 3. 生成 DOS 表 (analytic_dos.txt) 并填充内部数组
@@ -273,35 +261,58 @@ static double GetGridStep(double k_pi_val) {
 
 void Band::BuildAnalyticLists() {
     cout << "Building Analytic Lists (Indexing)..." << endl;
-    if (dlist <= 0) dlist = 1.0 / (0.01 * eV0);
+    if (dlist <= 0) dlist = eV0 / 0.002 ;
 
-    analytic_ntlist.assign(MWLE, 0);
-    analytic_ptlist.assign(MWLE, 0);
+    analytic_ntlist.assign(MWLE_ana, 0);
+    analytic_ptlist.assign(MWLE_ana, 0);
     analytic_tlist.resize(analytic_k_grid.size());
 
     for (size_t i = 0; i < analytic_k_grid.size(); ++i) {
         double E = analytic_k_grid[i].energy;
         int itab = (int)((E - emin) * dlist);
-        if (itab >= 0 && itab < MWLE) analytic_ntlist[itab]++;
+        if (itab >= 0 && itab < MWLE_ana) analytic_ntlist[itab]++;
     }
 
     int current_offset = 0;
-    for (int itab = 0; itab < MWLE; ++itab) {
+    for (int itab = 0; itab < MWLE_ana; ++itab) {
         analytic_ptlist[itab] = current_offset;
         current_offset += analytic_ntlist[itab];
     }
 
-    std::vector<int> temp_counters(MWLE, 0);
+    std::vector<int> temp_counters(MWLE_ana, 0);
     for (size_t i = 0; i < analytic_k_grid.size(); ++i) {
         double E = analytic_k_grid[i].energy;
         int itab = (int)((E - emin) * dlist);
-        if (itab >= 0 && itab < MWLE) {
+        if (itab >= 0 && itab < MWLE_ana) {
             int pos = analytic_ptlist[itab] + temp_counters[itab];
             analytic_tlist[pos] = (int)i;
             temp_counters[itab]++;
         }
     }
-    cout << "  Analytic lists built. Indexed " << analytic_k_grid.size() << " states into " << MWLE << " energy bins." << endl;
+    cout << "  Analytic lists built. Indexed " << analytic_k_grid.size() << " states into " << MWLE_ana << " energy bins." << endl;
+
+    string debug_file = pathname + "/debug_analytic_bins.txt";
+    ofstream out(debug_file.c_str());
+    out << "Bin_Index Energy_Min(eV) Energy_Max(eV) Count Start_Index" << endl;
+
+    int empty_bins = 0;
+    int total_bins = MWLE_ana; // 或者是实际用到的最大 itab
+
+    for (int i = 0; i < total_bins; ++i) {
+        int count = analytic_ntlist[i];
+        if (count == 0) empty_bins++;
+        
+        // 仅打印有数据的 Bin，或者前 100 个 Bin 用于检查
+        if (count > 0 || i < MWLE_ana) {
+            double E_min_eV = (i * (1.0/dlist) + emin) * eV0;
+            double E_max_eV = ((i+1) * (1.0/dlist) + emin) * eV0;
+            out << i << " " << E_min_eV << " " << E_max_eV << " " 
+                << count << " " << analytic_ptlist[i] << endl;
+        }
+    }
+    out.close();
+    cout << "  [Debug] Bin statistics dumped to: " << debug_file << endl;
+    cout << "  [Debug] Total Bins: " << total_bins << ", Empty Bins: " << empty_bins << endl;
 }
 
 void Band::InitPhononSpectrum(string input_path) {
@@ -572,6 +583,86 @@ void Band::BuildAnalyticScatteringTable() {
     cout << "  Analytic scattering table built. Max Rate (norm) = " << max_gamma << endl;
 }
 
+int Band::GetAxisIndex(double k_norm) {
+    int idx = static_cast<int>((k_norm + 2.0) / 0.01 + 0.5);
+    if (idx < 0) idx = 0;
+    return idx;
+}
+
+void Band::InitAxisLookupTable() {
+    cout << "Initializing Axis Lookup Table (O(1) Map)..." << endl;
+
+    std::vector<double> ticks = GenerateNonUniformTicks();
+    num_ticks_axis = static_cast<int>(ticks.size());
+
+    k_map_min = -2.1;
+    k_map_max = 2.1;
+    double resolution = 0.001;
+    k_map_scale = 1.0 / resolution;
+
+    int map_size = static_cast<int>((k_map_max - k_map_min) * k_map_scale) + 1;
+    k_axis_map.resize(map_size);
+
+    for (int i = 0; i < map_size; ++i) {
+        double k_val = k_map_min + i * resolution;
+
+        std::vector<double>::iterator it = std::lower_bound(ticks.begin(), ticks.end(), k_val);
+
+        int idx = 0;
+        if (it == ticks.begin()) {
+            idx = 0;
+        } else if (it == ticks.end()) {
+            idx = num_ticks_axis - 1;
+        } else {
+            double val_upper = *it;
+            double val_lower = *(it - 1);
+
+            if ((val_upper - k_val) < (k_val - val_lower)) {
+                idx = static_cast<int>(it - ticks.begin());
+            } else {
+                idx = static_cast<int>(it - ticks.begin()) - 1;
+            }
+        }
+        k_axis_map[i] = idx;
+    }
+
+    cout << "  Axis Map built. Size: " << map_size << ", Resolution: " << resolution << endl;
+    cout << "  Grid dimensions: " << num_ticks_axis << "^3" << endl;
+}
+
+int Band::GetAxisIndex_O1(double k_val) {
+    int map_idx = static_cast<int>((k_val - k_map_min) * k_map_scale);
+    if (map_idx < 0) return 0;
+    if (map_idx >= static_cast<int>(k_axis_map.size())) return num_ticks_axis - 1;
+    return k_axis_map[map_idx];
+}
+
+void Band::GetAnalyticV_FromTable(Particle* p) {
+    static const double a_lattice = 5.43e-10;
+    static const double conversion_factor = 1.0 / ((PI / a_lattice) * spr0);
+
+    double kx_pi = p->kx * conversion_factor;
+    double ky_pi = p->ky * conversion_factor;
+    double kz_pi = p->kz * conversion_factor;
+
+    int ix = GetAxisIndex_O1(kx_pi);
+    int iy = GetAxisIndex_O1(ky_pi);
+    int iz = GetAxisIndex_O1(kz_pi);
+
+    int N = num_ticks_axis;
+    int flat_idx = ix * (N * N) + iy * N + iz;
+    if (flat_idx < 0 || flat_idx >= static_cast<int>(analytic_k_grid.size())) {
+        analytic_vx = analytic_vy = analytic_vz = 0.0;
+        return;
+    }
+
+    const AnalyticKPoint& pt = analytic_k_grid[flat_idx];
+    analytic_vx = pt.vx;
+    analytic_vy = pt.vy;
+    analytic_vz = pt.vz;
+    // 保留能量不变，以匹配散射产生的能量
+}
+
 void Band::BuildAnalyticInjectionTable() {
     cout << "Building Analytic Injection Table (Output to file)..." << endl;
 
@@ -581,7 +672,6 @@ void Band::BuildAnalyticInjectionTable() {
 
     double T_lattice = T0; 
     double kb_T_eV = T_lattice * 8.617333262e-5; 
-    double q_SI = 1.602176634e-19;
 
     string filename = pathname + "/analytic_density_cross_number.txt";
     ofstream out(filename.c_str());
@@ -611,7 +701,7 @@ void Band::BuildAnalyticInjectionTable() {
         double E_norm = energy[itab];
         double E_eV = E_norm * eV0;
 
-        double g_norm = sumdos[itab][bandof[PELEC]];
+        double g_norm = sumdos[itab][PELEC];
         dos_SI_cache[itab] = g_norm / (eV0 * std::pow(spr0, 3)); 
 
         double k_SI = GetKaneK_SI(E_eV);
@@ -694,10 +784,122 @@ void Band::ReadAnalyticInjectionTable() {
          << "n= " << Ef_density[mid]*conc0 << " m^-3" << endl;
 }
 
-void Band::ReadAnalyticData(string input_path) {
-    cout << "Reading Analytic Band Data..." << endl;
+// -----------------------------------------------------------------------------
+// 运行时核心工具：状态选择与速度计算
+// -----------------------------------------------------------------------------
 
-    // 1) 读 DOS
+void Band::SelectAnalyticKState(Particle* p, double E_target) {
+    int itab = (int)((E_target - emin) * dlist);
+    if (itab < 0) itab = 0;
+    if (itab >= MWLE_ana) itab = MWLE_ana - 1;
+
+    int start_index = analytic_ptlist[itab];
+    int count = analytic_ntlist[itab];
+
+    if (count <= 0) {
+        return;
+    }
+
+    double total_weight = 0.0;
+    for (int i = 0; i < count; ++i) {
+        int grid_idx = analytic_tlist[start_index + i];
+        total_weight += analytic_k_grid[grid_idx].weight;
+    }
+
+    double r = Random() * total_weight;
+    double current_weight = 0.0;
+    int selected_grid_idx = -1;
+
+    for (int i = 0; i < count; ++i) {
+        int grid_idx = analytic_tlist[start_index + i];
+        current_weight += analytic_k_grid[grid_idx].weight;
+        if (current_weight >= r) {
+            selected_grid_idx = grid_idx;
+            break;
+        }
+    }
+
+    if (selected_grid_idx == -1) {
+        selected_grid_idx = analytic_tlist[start_index + count - 1];
+    }
+
+    const AnalyticKPoint& pt = analytic_k_grid[selected_grid_idx];
+    p->kx = pt.kx;
+    p->ky = pt.ky;
+    p->kz = pt.kz;
+    analytic_vx = pt.vx;
+    analytic_vy = pt.vy;
+    analytic_vz = pt.vz;
+}
+
+void Band::GetAnalyticV(Particle* p) {
+    static const double HBAR = 1.0545718e-34;
+    static const double M0 = 9.1093837e-31;
+
+    double ml = 0.916 * M0;
+    double mt = 0.190 * M0;
+    double alpha_eV = 0.5;
+
+    double k_scale = 1.0 / spr0;
+    double kx_real = p->kx * k_scale;
+    double ky_real = p->ky * k_scale;
+    double kz_real = p->kz * k_scale;
+
+    double E_eV = p->energy * eV0;
+
+    double abs_kx = std::fabs(kx_real);
+    double abs_ky = std::fabs(ky_real);
+    double abs_kz = std::fabs(kz_real);
+
+    double K_valley = 0.85 * (2.0 * PI / 5.431e-10);
+
+    double kl = 0.0;
+    double kt_vec[2] = {0.0, 0.0};
+    int axis = 0;
+
+    if (abs_kx >= abs_ky && abs_kx >= abs_kz) {
+        axis = 0;
+        kl = (kx_real > 0) ? (kx_real - K_valley) : (kx_real + K_valley);
+        kt_vec[0] = ky_real;
+        kt_vec[1] = kz_real;
+    } else if (abs_ky >= abs_kx && abs_ky >= abs_kz) {
+        axis = 1;
+        kl = (ky_real > 0) ? (ky_real - K_valley) : (ky_real + K_valley);
+        kt_vec[0] = kx_real;
+        kt_vec[1] = kz_real;
+    } else {
+        axis = 2;
+        kl = (kz_real > 0) ? (kz_real - K_valley) : (kz_real + K_valley);
+        kt_vec[0] = kx_real;
+        kt_vec[1] = ky_real;
+    }
+
+    double prefactor = HBAR / (1.0 + 2.0 * alpha_eV * E_eV);
+
+    double vl = prefactor * (kl / ml);
+    double vt1 = prefactor * (kt_vec[0] / mt);
+    double vt2 = prefactor * (kt_vec[1] / mt);
+
+    double v_norm_scale = 1.0 / velo0;
+
+    if (axis == 0) {
+        analytic_vx = vl * v_norm_scale;
+        analytic_vy = vt1 * v_norm_scale;
+        analytic_vz = vt2 * v_norm_scale;
+    } else if (axis == 1) {
+        analytic_vx = vt1 * v_norm_scale;
+        analytic_vy = vl * v_norm_scale;
+        analytic_vz = vt2 * v_norm_scale;
+    } else {
+        analytic_vx = vt1 * v_norm_scale;
+        analytic_vy = vt2 * v_norm_scale;
+        analytic_vz = vl * v_norm_scale;
+    }
+}
+void Band::ReadAnalyticData(string input_path) {
+    cout << "Reading Analytic Band Data (Direct Lookup Mode)..." << endl;
+
+    // 1) 读 DOS 表
     string dos_file = input_path + "/analytic_dos.txt";
     ifstream in_dos(dos_file.c_str());
     if (!in_dos) {
@@ -705,7 +907,7 @@ void Band::ReadAnalyticData(string input_path) {
         exit(1);
     }
     char buffer[256];
-    in_dos.getline(buffer, 256); // skip header
+    in_dos.getline(buffer, 256); // 跳过表头
 
     double E_eV, dos_real, dos_norm_val;
     int band_idx = bandof[PELEC];
@@ -727,38 +929,55 @@ void Band::ReadAnalyticData(string input_path) {
     in_dos.close();
     cout << "  DOS table loaded successfully." << endl;
 
-    // 2) 读 E-k-v
+    // 2) 读 E-k-v 表，直接使用文件中给出的速度矢量
     string ek_file = input_path + "/analytic_ek.txt";
     ifstream in_ek(ek_file.c_str());
     if (!in_ek) {
         cerr << "Error: Cannot open " << ek_file << endl;
         exit(1);
     }
-    in_ek.getline(buffer, 256); // skip header
+    in_ek.getline(buffer, 256); // 跳过表头
 
     analytic_k_grid.clear();
-    analytic_k_grid.reserve(2000000);
+    analytic_k_grid.reserve(8000000);
 
-    double kx_pi, ky_pi, kz_pi, v_ms;
+    // 归一化转换
     double a_lattice = 5.43e-10;
-    double k_to_internal = (PI / a_lattice) * spr0;
+    double k_pi_to_internal = (PI / a_lattice) * spr0; // k_internal = k_pi * (pi/a*spr0)
+    double v_real_to_internal = 1.0 / velo0;           // v_internal = v_real / velo0
 
-    while(in_ek >> kx_pi >> ky_pi >> kz_pi >> E_eV >> v_ms) {
+    double kx_pi, ky_pi, kz_pi, E_eV_in;
+    double vx_si, vy_si, vz_si;
+
+    while(in_ek >> kx_pi >> ky_pi >> kz_pi >> E_eV_in >> vx_si >> vy_si >> vz_si) {
         AnalyticKPoint pt;
-        pt.kx = kx_pi * k_to_internal;
-        pt.ky = ky_pi * k_to_internal;
-        pt.kz = kz_pi * k_to_internal;
-        pt.energy = E_eV / eV0;
-        pt.velocity = v_ms / velo0;
 
+        // k、能量归一化
+        pt.kx = kx_pi * k_pi_to_internal;
+        pt.ky = ky_pi * k_pi_to_internal;
+        pt.kz = kz_pi * k_pi_to_internal;
+        pt.energy = E_eV_in / eV0;
+
+        // 速度直接表读 -> 归一化
+        pt.vx = vx_si * v_real_to_internal;
+        pt.vy = vy_si * v_real_to_internal;
+        pt.vz = vz_si * v_real_to_internal;
+        pt.velocity = std::sqrt(pt.vx * pt.vx + pt.vy * pt.vy + pt.vz * pt.vz);
+
+        // 权重
         double step_x = GetGridStep(kx_pi);
         double step_y = GetGridStep(ky_pi);
         double step_z = GetGridStep(kz_pi);
         pt.weight = step_x * step_y * step_z;
-        pt.valley_index = 0;
+
+        // 简单谷索引（仅作标记）
+        if (std::fabs(kx_pi) > 1.5) pt.valley_index = 0;
+        else if (std::fabs(ky_pi) > 1.5) pt.valley_index = 1;
+        else pt.valley_index = 2;
 
         analytic_k_grid.push_back(pt);
     }
     in_ek.close();
-    cout << "  E-k table loaded. Total points: " << analytic_k_grid.size() << endl;
+
+    cout << "  E-k-v table loaded. Total points: " << analytic_k_grid.size() << endl;
 }

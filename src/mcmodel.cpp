@@ -3004,6 +3004,22 @@ void MeshQuantities::select_kstate_fermi_dirac(Particle * iter, int dir, double 
 
 
 void MeshQuantities::select_kstate(Particle * iter, int dir) {
+  // 解析能带分支
+  if (band.use_analytic_band) {
+    double tmp_const = 1 - exp(- band.emax);
+    iter->energy = -log(1 - Random() * tmp_const);
+
+    band.SelectAnalyticKState(iter, iter->energy);
+    band.GetAnalyticV_FromTable(iter);
+
+    if (((dir == 1) && (band.analytic_vy < 0)) || ((dir == -1) && (band.analytic_vy > 0))) {
+      select_kstate(iter, dir);
+      return;
+    }
+    iter->itet = 0;
+    return;
+  }
+
   double ddos,rdos;
   double tmp_const = 1 - exp(- band.emax);
   int iptype; 

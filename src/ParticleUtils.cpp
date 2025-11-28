@@ -306,6 +306,18 @@ void MeshQuantities::in_wedge(double &xout,double &yout,double &zout,
                              
 void MeshQuantities::GetV()
 {
+  if (band.use_analytic_band) {
+    Particle p;
+    p.kx = kx;
+    p.ky = ky;
+    p.kz = kz;
+    p.energy = energy;
+    band.GetAnalyticV_FromTable(&p);
+    vx = band.analytic_vx;
+    vy = band.analytic_vy;
+    vz = band.analytic_vz;
+    return;
+  }
 
   /*mc_band.itet is within irreduzible wedge*/
   

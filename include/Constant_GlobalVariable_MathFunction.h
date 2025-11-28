@@ -94,6 +94,7 @@ const int MNB=NBE+NBH+NBOE;
 const int MWLI=470000;
 //maximum number of energy-fields for tetrdaederlist
 const int MWLE=325;
+const int MWLE_ana=4825;
 
 //maximum number of tetraeder in the onedimensional list
 //of tetrahedrons at the surface of the wedge

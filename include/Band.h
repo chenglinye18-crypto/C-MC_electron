@@ -455,12 +455,15 @@ public :
   void ExportAnalyticScattering(string output_path);
   void BuildAnalyticInjectionTable();
   void ReadAnalyticInjectionTable();
+  void SelectAnalyticKState(Particle* p, double E_target);
+  void GetAnalyticV(Particle* p);
 
   // ---------------- Analytic band support ----------------
   struct AnalyticKPoint {
       double kx, ky, kz;   // 归一化波矢
       double energy;       // 归一化能量
       double velocity;     // 归一化速度模长
+      double vx, vy, vz;   // 归一化速度分量
       double weight;       // 网格权重
       int valley_index;    // 能谷索引
   };
@@ -470,12 +473,26 @@ public :
   std::vector<int> analytic_ptlist;
   std::vector<int> analytic_tlist;
 
+  // O(1) 轴索引映射
+  std::vector<int> k_axis_map;
+  double k_map_min = 0.0;
+  double k_map_max = 0.0;
+  double k_map_scale = 0.0;
+  int num_ticks_axis = 0;
+
   void ReadAnalyticData(string input_path);
   void BuildAnalyticLists();
   double GetKaneK_SI(double E_eV);
   double GetKaneDOS_SI(double E_eV);
   double GetOverlapFactor(double q, double Rs);
   double GetPhononOmega(int branch, double q);
+  int GetAxisIndex(double k_norm);
+  void InitAxisLookupTable();
+  int GetAxisIndex_O1(double k_val);
+  void GetAnalyticV_FromTable(Particle* p);
+  double analytic_vx = 0.0;
+  double analytic_vy = 0.0;
+  double analytic_vz = 0.0;
 
   // ---------------- Phonon spectrum (table-driven) ---------------
   struct PhononSpectrum {
