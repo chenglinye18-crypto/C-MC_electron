@@ -4467,7 +4467,7 @@ void Band::IELEC(string path)
     }                            //ENDIF
 
     //____read bandstruc-values from files or analytic model
-    use_analytic_band = false;
+    use_analytic_band = true;
     if (use_analytic_band)
     {
         double alpha_val = 0.5; // 1/eV
@@ -4559,6 +4559,9 @@ void Band::IELEC(string path)
         }                        //ENDIF
     }                            //ENDDO
 
+    // 导出全能带散射率用于对比
+    ExportFullBandScattering(path);
+
     init_inject_and_density_table() ;
     //____end of IELEC
     return;
@@ -4568,6 +4571,73 @@ bool Band::out_of_range(double Ef) {
   if ((Ef > Efmax) || (Ef < Efmin))
     return true;
   return false;
+}
+
+/**
+ * @brief 导出全能带散射率 (for comparison)
+ * 仅导出第一条导带 (band_idx = bandof[PELEC]) 的数据
+ */
+void Band::ExportFullBandScattering(string output_path) {
+    string filename = output_path + "/scattering_rates_fullband.txt";
+    cout << "Exporting FULL BAND scattering rates to: " << filename << endl;
+
+    ofstream out(filename.c_str());
+    if (!out) {
+        cerr << "Error: Cannot open export file." << endl;
+        return;
+    }
+
+    out << "Energy(eV) Total(1/s) Acoustic(1/s) IV_g_ems(1/s) IV_g_abs(1/s) IV_f_ems(1/s) IV_f_abs(1/s) II(1/s)" << endl;
+
+    int ipt = PELEC;
+    int ib = bandof[ipt]; // 第一条导带
+
+    for (int itab = 0; itab <= MTAB; ++itab) {
+        double E_norm = energy[itab];
+        double E_eV = E_norm * eV0;
+        if (E_eV > 2.0) break; // 对比范围
+
+        // 总散射率 (norm -> SI)
+        double rate_total_SI = sumscatt[itab][ib] / time0;
+
+        // 分项 (先累加归一化，再一次性除以 time0)
+        double rate_ac_norm = 0.0;
+        double rate_g_ems_norm = 0.0;
+        double rate_g_abs_norm = 0.0;
+        double rate_f_ems_norm = 0.0;
+        double rate_f_abs_norm = 0.0;
+        double rate_ii_norm = 0.0;
+
+        for (int ifinal = 0; ifinal < nband[ipt]; ++ifinal) {
+            rate_ac_norm += scatte[0][ifinal][0] * dose[0][ifinal][itab];
+
+            for (int i = 1; i <= 6; ++i) {
+                double r = scatte[i][ifinal][0] * dose[i][ifinal][itab];
+                if (i % 2 != 0) rate_g_abs_norm += r;
+                else            rate_g_ems_norm += r;
+            }
+
+            for (int i = 7; i <= 12; ++i) {
+                double r = scatte[i][ifinal][0] * dose[i][ifinal][itab];
+                if (i % 2 != 0) rate_f_abs_norm += r;
+                else            rate_f_ems_norm += r;
+            }
+
+            rate_ii_norm += scattiie[ifinal][0][itab];
+        }
+
+        out << E_eV << " "
+            << rate_total_SI << " "
+            << rate_ac_norm / time0 << " "
+            << rate_g_ems_norm / time0 << " "
+            << rate_g_abs_norm / time0 << " "
+            << rate_f_ems_norm / time0 << " "
+            << rate_f_abs_norm / time0 << " "
+            << rate_ii_norm / time0 << endl;
+    }
+
+    out.close();
+    cout << "  Done." << endl;
 }
 
 double Band::density_to_Ef(double dens) {

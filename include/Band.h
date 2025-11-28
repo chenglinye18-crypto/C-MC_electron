@@ -490,6 +490,7 @@ public :
   void InitAxisLookupTable();
   int GetAxisIndex_O1(double k_val);
   void GetAnalyticV_FromTable(Particle* p);
+  void ExportFullBandScattering(string output_path);
   double analytic_vx = 0.0;
   double analytic_vy = 0.0;
   double analytic_vz = 0.0;
