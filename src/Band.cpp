@@ -4467,7 +4467,6 @@ void Band::IELEC(string path)
     }                            //ENDIF
 
     //____read bandstruc-values from files or analytic model
-    use_analytic_band = true;
     if (use_analytic_band)
     {
         double alpha_val = 0.5; // 1/eV
@@ -4476,8 +4475,9 @@ void Band::IELEC(string path)
         // 先生成解析能带文件，再读取并建索引表
         //InitAnalyticBand(alpha_norm, mell, melt, path);
         ReadAnalyticData(path);
+        InitValleyConfiguration();
         InitAxisLookupTable();
-        BuildAnalyticLists();
+        BuildAnalyticLists(path);
         //InitPhononSpectrum(path);
         BuildAnalyticScatteringTable();
 
@@ -4559,8 +4559,8 @@ void Band::IELEC(string path)
         }                        //ENDIF
     }                            //ENDDO
 
-    // 导出全能带散射率用于对比
-    ExportFullBandScattering(path);
+    // 导出全能带散射率用于对比debug用
+    //ExportFullBandScattering(path);
 
     init_inject_and_density_table() ;
     //____end of IELEC

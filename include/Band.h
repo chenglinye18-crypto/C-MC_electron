@@ -11,6 +11,8 @@ class Band
     //    contains Name for each particle TYPE
     //CHARACTER*8 Typename[NumParType]
 public:
+
+    bool use_analytic_band = true;
     char Typename[NumParType][9];
     //     number of scattering processes (electrons)
     int scpre;
@@ -279,7 +281,6 @@ public:
     double melt;
     //    DOS mass in the minimum of the first conduction band
     double meld;
-    bool use_analytic_band = false;
     //    temperature of the transversal acoustic g-phonon (electrons)
     double temptag;
     //    temperature of the longitudinal acoustic g-phonon (electrons)
@@ -472,6 +473,11 @@ public :
   std::vector<int> analytic_ntlist;
   std::vector<int> analytic_ptlist;
   std::vector<int> analytic_tlist;
+  std::vector<double> k_ticks_code;
+
+  double valley_k0_norm = 0.0;
+  double valley_centers[6][3];
+  int valley_axis[6];
 
   // O(1) 轴索引映射
   std::vector<int> k_axis_map;
@@ -481,19 +487,26 @@ public :
   int num_ticks_axis = 0;
 
   void ReadAnalyticData(string input_path);
-  void BuildAnalyticLists();
+  void BuildAnalyticLists(string pathname);
   double GetKaneK_SI(double E_eV);
   double GetKaneDOS_SI(double E_eV);
   double GetOverlapFactor(double q, double Rs);
   double GetPhononOmega(int branch, double q);
   int GetAxisIndex(double k_norm);
   void InitAxisLookupTable();
+  void InitValleyConfiguration();
+  int GetValleyID(double kx, double ky, double kz);
   int GetAxisIndex_O1(double k_val);
+  double GetAnalyticGridTime(Particle* p, double Fx, double Fy, double Fz);
+  double GetAnalyticImpurityRate(double E, double DA, double Rho, double eps_si, double frickel);
+  void AnalyticPhononScatter(Particle* p);
+  void AnalyticImpurityScatter(Particle* p, double DA, double Rho, double eps_si, double frickel, double ImpScGamma_Max);
   void GetAnalyticV_FromTable(Particle* p);
   void ExportFullBandScattering(string output_path);
   double analytic_vx = 0.0;
   double analytic_vy = 0.0;
   double analytic_vz = 0.0;
+  bool analytic_self_scatter = false;
 
   // ---------------- Phonon spectrum (table-driven) ---------------
   struct PhononSpectrum {

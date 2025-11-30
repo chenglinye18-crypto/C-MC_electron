@@ -259,7 +259,7 @@ static double GetGridStep(double k_pi_val) {
     return step_coarse;
 }
 
-void Band::BuildAnalyticLists() {
+void Band::BuildAnalyticLists(string pathname) {
     cout << "Building Analytic Lists (Indexing)..." << endl;
     if (dlist <= 0) dlist = eV0 / 0.002 ;
 
@@ -595,6 +595,14 @@ void Band::InitAxisLookupTable() {
     std::vector<double> ticks = GenerateNonUniformTicks();
     num_ticks_axis = static_cast<int>(ticks.size());
 
+    // k 刻度（代码单位）
+    static const double a_lattice = 5.43e-10;
+    double conversion = (PI / a_lattice) * spr0;
+    k_ticks_code.resize(num_ticks_axis);
+    for (int i = 0; i < num_ticks_axis; ++i) {
+        k_ticks_code[i] = ticks[i] * conversion;
+    }
+
     k_map_min = -2.1;
     k_map_max = 2.1;
     double resolution = 0.001;
@@ -637,6 +645,283 @@ int Band::GetAxisIndex_O1(double k_val) {
     return k_axis_map[map_idx];
 }
 
+double Band::GetAnalyticGridTime(Particle* p, double Fx, double Fy, double Fz) {
+    static const double a_lattice = 5.43e-10;
+    double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+
+    double min_dt = 1.0e99;
+
+    auto update_dt = [&](double k_val, double F, double &min_val) {
+        if (std::fabs(F) < 1.0e-20) return;
+        int idx = GetAxisIndex_O1((k_val + (F > 0 ? 1e-9 : -1e-9)) * to_pi);
+        double wall;
+        if (F > 0) {
+            if (idx >= num_ticks_axis - 1) wall = 1.0e99;
+            else wall = k_ticks_code[idx + 1];
+        } else {
+            if (idx <= 0) wall = -1.0e99;
+            else wall = k_ticks_code[idx];
+        }
+        double dt = (wall - k_val) / F;
+        if (dt > 0 && dt < min_val) min_val = dt;
+    };
+
+    update_dt(p->kx, Fx, min_dt);
+    update_dt(p->ky, Fy, min_dt);
+    update_dt(p->kz, Fz, min_dt);
+
+    if (min_dt < 1.0e-15) min_dt = 1.0e-15;
+    return min_dt;
+}
+
+double Band::GetAnalyticImpurityRate(double E, double DA, double Rho, double eps_si, double frickel) {
+    // 阈值判断，与 GetImpScRate 中保持一致
+    double rvscrt = 1.0/scrt0;
+    if ((E * eV0 >= 0.120) || (DA * conc0 < 1e22)) {
+    //if (false) {
+        return rvscrt;
+    }
+
+    double eebeta = frickel * 4.0 * PI * Rho / (2.0 * meld * eps_si);
+    if (std::abs(eebeta) < 1.0e-20) eebeta = 1.0e-20;
+
+    double denom_core = PI * std::pow(frickel * Rho, 2.0);
+    if (denom_core < 1.0e-30) return 0.0;
+
+    double term_in_bracket = 4.0 * E * melt / (eebeta * meld);
+    double denom_full = denom_core * (1.0 + term_in_bracket);
+    if (denom_full < 1.0e-30) return 0.0;
+
+    rvscrt = DA * meld * std::sqrt(2.0 * meld * E) / denom_full;
+    rvscrt = Max(rvscrt,1.0/scrt0);
+    return rvscrt;
+}
+
+void Band::AnalyticImpurityScatter(Particle* p, double DA, double Rho, double eps_si, double frickel, double ImpScGamma_Max) {
+    analytic_self_scatter = false;
+
+    double gamimp = GetAnalyticImpurityRate(p->energy, DA, Rho, eps_si, frickel);
+    if (gamimp < Random() * ImpScGamma_Max) {
+        analytic_self_scatter = true;
+        return;
+    }
+
+    double k_conv_real = 1.0 / spr0;
+    double kx_real = p->kx * k_conv_real;
+    double ky_real = p->ky * k_conv_real;
+    double kz_real = p->kz * k_conv_real;
+
+    double a_lattice = 5.43e-10;
+    double K_valley_mag = 0.85 * (2.0 * PI / a_lattice);
+    double K0_code = K_valley_mag * spr0;
+
+    double kl = 0.0, kt1 = 0.0, kt2 = 0.0;
+    int axis = 0;
+    if (std::fabs(p->kx) >= std::fabs(p->ky) && std::fabs(p->kx) >= std::fabs(p->kz)) {
+        axis = 0;
+        kl = (p->kx > 0) ? (p->kx - K0_code) : (p->kx + K0_code);
+        kt1 = p->ky; kt2 = p->kz;
+    } else if (std::fabs(p->ky) >= std::fabs(p->kx) && std::fabs(p->ky) >= std::fabs(p->kz)) {
+        axis = 1;
+        kl = (p->ky > 0) ? (p->ky - K0_code) : (p->ky + K0_code);
+        kt1 = p->kx; kt2 = p->kz;
+    } else {
+        axis = 2;
+        kl = (p->kz > 0) ? (p->kz - K0_code) : (p->kz + K0_code);
+        kt1 = p->kx; kt2 = p->ky;
+    }
+
+    double scale_l = std::sqrt(meld / mell);
+    double scale_t = std::sqrt(meld / melt);
+    double x_bh = kl * scale_l;
+    double y_bh = kt1 * scale_t;
+    double z_bh = kt2 * scale_t;
+
+    double betaq = frickel * 4.0 * PI * Rho / eps_si;
+    double eebeta = betaq / (2.0 * meld);
+    double alfa = eebeta * meld / (2.0 * p->energy * melt);
+    double pr = Random() / (1.0 + 0.5 * alfa);
+    double costr = 1.0 - alfa * pr / (1.0 - pr);
+    if (costr > 1.0) costr = 1.0;
+    if (costr < -1.0) costr = -1.0;
+    double sintr = std::sqrt(std::max(0.0, 1.0 - costr * costr));
+    double phi = 2.0 * PI * Random();
+    double cospr = std::cos(phi);
+    double sinpr = std::sin(phi);
+
+    double k_mag = std::sqrt(x_bh * x_bh + y_bh * y_bh + z_bh * z_bh);
+    if (k_mag < 1e-20) k_mag = 1e-20;
+    double cos_theta_old = z_bh / k_mag;
+    double sin_theta_old = std::sqrt(std::max(0.0, 1.0 - cos_theta_old * cos_theta_old));
+    double cos_phi_old = 1.0, sin_phi_old = 0.0;
+    if (sin_theta_old > 1e-9) {
+        cos_phi_old = x_bh / (k_mag * sin_theta_old);
+        sin_phi_old = y_bh / (k_mag * sin_theta_old);
+    }
+
+    double x_new_prime = k_mag * sintr * cospr;
+    double y_new_prime = k_mag * sintr * sinpr;
+    double z_new_prime = k_mag * costr;
+
+    double x_bh_new = cos_phi_old * cos_theta_old * x_new_prime - sin_phi_old * y_new_prime + cos_phi_old * sin_theta_old * z_new_prime;
+    double y_bh_new = sin_phi_old * cos_theta_old * x_new_prime + cos_phi_old * y_new_prime + sin_phi_old * sin_theta_old * z_new_prime;
+    double z_bh_new = -sin_theta_old * x_new_prime + cos_theta_old * z_new_prime;
+
+    double kl_new = x_bh_new * std::sqrt(mell / meld);
+    double kt1_new = y_bh_new * std::sqrt(melt / meld);
+    double kt2_new = z_bh_new * std::sqrt(melt / meld);
+
+    if (axis == 0) {
+        p->kx = (p->kx > 0) ? (K0_code + kl_new) : (-K0_code + kl_new);
+        p->ky = kt1_new;
+        p->kz = kt2_new;
+    } else if (axis == 1) {
+        p->ky = (p->ky > 0) ? (K0_code + kl_new) : (-K0_code + kl_new);
+        p->kx = kt1_new;
+        p->kz = kt2_new;
+    } else {
+        p->kz = (p->kz > 0) ? (K0_code + kl_new) : (-K0_code + kl_new);
+        p->kx = kt1_new;
+        p->ky = kt2_new;
+    }
+
+    GetAnalyticV_FromTable(p);
+}
+
+// -----------------------------------------------------------------------------
+// 解析能带：声子散射与能谷操作模块
+// -----------------------------------------------------------------------------
+
+void Band::InitValleyConfiguration() {
+    static const double a_lattice = 5.43e-10;
+    double K_real = 0.85 * (2.0 * PI / a_lattice);
+    valley_k0_norm = K_real * spr0;
+
+    cout << "Initializing Valley Config. K0_norm (Code Unit) = " << valley_k0_norm << endl;
+
+    // +X / -X
+    valley_centers[0][0] = valley_k0_norm;  valley_centers[0][1] = 0.0;               valley_centers[0][2] = 0.0; valley_axis[0] = 0;
+    valley_centers[1][0] = -valley_k0_norm; valley_centers[1][1] = 0.0;               valley_centers[1][2] = 0.0; valley_axis[1] = 0;
+    // +Y / -Y
+    valley_centers[2][0] = 0.0;             valley_centers[2][1] = valley_k0_norm;    valley_centers[2][2] = 0.0; valley_axis[2] = 1;
+    valley_centers[3][0] = 0.0;             valley_centers[3][1] = -valley_k0_norm;   valley_centers[3][2] = 0.0; valley_axis[3] = 1;
+    // +Z / -Z
+    valley_centers[4][0] = 0.0;             valley_centers[4][1] = 0.0;               valley_centers[4][2] = valley_k0_norm; valley_axis[4] = 2;
+    valley_centers[5][0] = 0.0;             valley_centers[5][1] = 0.0;               valley_centers[5][2] = -valley_k0_norm; valley_axis[5] = 2;
+}
+
+int Band::GetValleyID(double kx, double ky, double kz) {
+    int best_id = 0;
+    double min_d2 = 1.0e99;
+    for (int i = 0; i < 6; ++i) {
+        double dx = kx - valley_centers[i][0];
+        double dy = ky - valley_centers[i][1];
+        double dz = kz - valley_centers[i][2];
+        double d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 < min_d2) {
+            min_d2 = d2;
+            best_id = i;
+        }
+    }
+    return best_id;
+}
+
+void Band::AnalyticPhononScatter(Particle* p) {
+    int itab = static_cast<int>((p->energy - emin) * dlist);
+    if (itab < 0) itab = 0;
+    if (itab >= MWLE_ana) itab = MWLE_ana - 1;
+
+    int band_idx = bandof[PELEC];
+    double total_rate = sumscatt[itab][band_idx];
+
+    analytic_self_scatter = false;
+    if (Random() * gamma[PELEC] > total_rate) {
+        analytic_self_scatter = true;
+        return;
+    }
+
+    double r_mech = Random() * total_rate;
+    double acc = 0.0;
+    int iscat = -1;
+    for (int i = 0; i < scpre; ++i) {
+        acc += dose[i][band_idx][itab];
+        if (acc >= r_mech) { iscat = i; break; }
+    }
+    if (iscat < 0) iscat = scpre - 1;
+
+    double delta_E_eV = 0.0;
+    int valley_rule = 0; // 0 intra, 1 g-opposite, 2 f-perp
+    static const double E_ph_meV[] = {
+        0, 10.0,10.0, 19.0,19.0, 62.0,62.0, 19.0,19.0, 51.0,51.0, 57.0,57.0
+    };
+
+    if (iscat == 0) {
+        delta_E_eV = 0.0;
+        valley_rule = 0;
+    } else if (iscat >= 1 && iscat <= 6) {
+        double hw = E_ph_meV[iscat] * 1e-3;
+        delta_E_eV = (iscat % 2 != 0) ? hw : -hw;
+        valley_rule = 1;
+    } else if (iscat >= 7 && iscat <= 12) {
+        double hw = E_ph_meV[iscat] * 1e-3;
+        delta_E_eV = (iscat % 2 != 0) ? hw : -hw;
+        valley_rule = 2;
+    } else {
+        analytic_self_scatter = true;
+        return;
+    }
+
+    int current_valley = GetValleyID(p->kx, p->ky, p->kz);
+    int target_valley = current_valley;
+    if (valley_rule == 1) {
+        target_valley = current_valley ^ 1;
+    } else if (valley_rule == 2) {
+        int axis = valley_axis[current_valley];
+        int r = static_cast<int>(Random() * 4.0);
+        static const int axis_map[3][2] = { {1,2}, {0,2}, {0,1} };
+        int next_axis = axis_map[axis][r / 2];
+        int next_dir = r % 2;
+        target_valley = next_axis * 2 + next_dir;
+    }
+
+    double E_final_norm = p->energy + delta_E_eV / eV0;
+    if (E_final_norm < 1e-6) E_final_norm = 1e-6;
+
+    Particle temp_p;
+    SelectAnalyticKState(&temp_p, E_final_norm);
+    int sample_valley = GetValleyID(temp_p.kx, temp_p.ky, temp_p.kz);
+
+    double dkx = temp_p.kx - valley_centers[sample_valley][0];
+    double dky = temp_p.ky - valley_centers[sample_valley][1];
+    double dkz = temp_p.kz - valley_centers[sample_valley][2];
+
+    double ql, qt1, qt2;
+    int s_axis = valley_axis[sample_valley];
+    if (s_axis == 0)      { ql = dkx; qt1 = dky; qt2 = dkz; }
+    else if (s_axis == 1) { ql = dky; qt1 = dkx; qt2 = dkz; }
+    else                  { ql = dkz; qt1 = dkx; qt2 = dky; }
+
+    int t_axis = valley_axis[target_valley];
+    double nkx=0.0, nky=0.0, nkz=0.0;
+    if (t_axis == 0) {
+        nkx = valley_centers[target_valley][0] + ql;
+        nky = qt1;
+        nkz = qt2;
+    } else if (t_axis == 1) {
+        nky = valley_centers[target_valley][1] + ql;
+        nkx = qt1;
+        nkz = qt2;
+    } else {
+        nkz = valley_centers[target_valley][2] + ql;
+        nkx = qt1;
+        nky = qt2;
+    }
+
+    p->kx = nkx;
+    p->ky = nky;
+    p->kz = nkz;
+    GetAnalyticV_FromTable(p);
+}
 void Band::GetAnalyticV_FromTable(Particle* p) {
     static const double a_lattice = 5.43e-10;
     static const double conversion_factor = 1.0 / ((PI / a_lattice) * spr0);
@@ -660,7 +945,7 @@ void Band::GetAnalyticV_FromTable(Particle* p) {
     analytic_vx = pt.vx;
     analytic_vy = pt.vy;
     analytic_vz = pt.vz;
-    // 保留能量不变，以匹配散射产生的能量
+    p->energy = pt.energy; // 保持 E-k 一致
 }
 
 void Band::BuildAnalyticInjectionTable() {
@@ -781,7 +1066,7 @@ void Band::ReadAnalyticInjectionTable() {
 
     int mid = NEf / 2;
     cout << "  [Check] Ef= " << Ef_value[mid]*eV0 << " eV, "
-         << "n= " << Ef_density[mid]*conc0 << " m^-3" << endl;
+         << "n= " << Ef_density[mid]*conc0*1e-6 << " cm^-3" << endl;
 }
 
 // -----------------------------------------------------------------------------
@@ -832,6 +1117,7 @@ void Band::SelectAnalyticKState(Particle* p, double E_target) {
     analytic_vz = pt.vz;
 }
 
+/*
 void Band::GetAnalyticV(Particle* p) {
     static const double HBAR = 1.0545718e-34;
     static const double M0 = 9.1093837e-31;
@@ -896,6 +1182,8 @@ void Band::GetAnalyticV(Particle* p) {
         analytic_vz = vl * v_norm_scale;
     }
 }
+*/
+
 void Band::ReadAnalyticData(string input_path) {
     cout << "Reading Analytic Band Data (Direct Lookup Mode)..." << endl;
 

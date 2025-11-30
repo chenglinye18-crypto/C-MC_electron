@@ -426,17 +426,38 @@ void MeshQuantities::density() {
   double *p_par_charge_value;
   double *pot;
 
+  // charge_fac is pointing to p_charge_fac
+  // 通过指针获取电荷系数数组
   p_charge_fac->ExtractView(&charge_fac);
-
+  // 将 p_par_charge 数组清零
   p_par_charge->PutScalar(0);
+  // 获取粒子所带电荷值的数组的指针
   p_par_charge->ExtractView(&p_par_charge_value);
  
+  /**
+  * @brief 填充 ghost cell 区域的数据，确保不同的 MPI 进程间的边界数据能够正确交换
+  */
   fill_ghost_cell();
 
+  // 计算和统计上一步的结果
+  /**
+   * @brief 统计上一步的模拟结果，计算各种物理量的统计值
+   * 物理量包括：速度分量、电荷量、载流子能量
+   */
   statistic();
 
+  // 计算每个粒子的单位电荷
+  //  粒子的体积为其所属的各个单元的体积之和 * 1/8
+  /**
+   * @brief 
+   * 根据每个 cell 中的粒子的电荷量分配到每个 cell 的各个顶点上，
+   * 分配时按照空间权重分配
+   */
   particle_to_density(p_par_charge, 2);
 
+  /**
+  * @brief 基于求解得到的电势与电荷分布计算电场
+  */
   compute_field();
 
   compute_cell_charge();
@@ -1909,8 +1930,6 @@ void MeshQuantities::particle_fly() {
 
   iband = band.ibt[itet];
 
-  GetV();
-
   int loop = 0;
 
   bool old_flag_getTetTime;
@@ -1918,16 +1937,26 @@ void MeshQuantities::particle_fly() {
   Particle old_par, new_par;
 
   while (left_time > 0) {
-    /*get particle's velocity */
-    GetV();
+    // 速度/能量同步
+    if (band.use_analytic_band) {
+      band.GetAnalyticV_FromTable(&(*par_iter));
+      vx = band.analytic_vx;
+      vy = band.analytic_vy;
+      vz = band.analytic_vz;
+    } else {
+      GetV();
+    }
     loop ++;
     /*simulate until particle used up LeftTime */
     
     if(Flag_GetTetTime)
       {
         /*time until particle changes tetrahedron in k space */
-        // 粒子到达所在四面体边界所需要的时间
-        TetTf=TetTime();    
+        if (band.use_analytic_band) {
+          TetTf = band.GetAnalyticGridTime(&(*par_iter), Ex, Ey, Ez);
+        } else {
+          TetTf=TetTime();
+        }
         Flag_GetTetTime=false;
       }
     
@@ -1951,17 +1980,24 @@ void MeshQuantities::particle_fly() {
     PhScTf = phrnl / band.gamtet[itet];
     
 
-    /*time until next impurity scattering process (variable Gamma scheme);
-        impurity scattering only in the lowest conduction band*/
-    if(iband == band.bandof[PELEC])
+    /*time until next impurity scattering process*/
+    if(band.use_analytic_band || iband == band.bandof[PELEC])
     {
         if(Flag_GetImpScTime)
         {
               imprnl = -log(Random());
               Flag_GetImpScTime = false;
         }
-        ImpScGamma = GetImpScGamma();
-        ImpScTf=imprnl / ImpScGamma;
+        if (band.use_analytic_band) {
+            ImpScGamma = band.GetAnalyticImpurityRate(energy, DA, Rho, eps[SILICON], frickel);
+            //ImpScGamma = GetImpScGamma();
+        } else {
+            ImpScGamma = GetImpScGamma();
+        }
+        if (ImpScGamma > 1e-20)
+            ImpScTf=imprnl / ImpScGamma;
+        else
+            ImpScTf = 1.0e99;
     }
     else
     {
@@ -2085,8 +2121,14 @@ void MeshQuantities::particle_fly() {
     case 3: {
         /* increase number of phonon scattering*/
       /*process event corresponds to particle */
-      if (par_type == PELEC) 
-        ElectronPhononScatter();
+      if (par_type == PELEC) {
+        if (band.use_analytic_band) {
+          band.AnalyticPhononScatter(&(*par_iter));
+          Flag_SelfScatter = band.analytic_self_scatter;
+        } else {
+          ElectronPhononScatter();
+        }
+      }
       else if (par_type == PHOLE) 
         HolePhononScatter();
       /// else// if (ParType==POXEL) OxideElectronPhononScatter();
@@ -2106,7 +2148,14 @@ void MeshQuantities::particle_fly() {
       OutPar(&old_par);
       
       /* increase number of impurity scattering */
-      if(par_type == PELEC)ElectronImpurityScatter();
+      if(par_type == PELEC) {
+        if (band.use_analytic_band) {
+          band.AnalyticImpurityScatter(&(*par_iter), DA, Rho, eps[SILICON], frickel, ImpScGamma);
+          Flag_SelfScatter = band.analytic_self_scatter;
+        } else {
+          ElectronImpurityScatter();
+        }
+      }
 
       OutPar(&new_par);
 	 
