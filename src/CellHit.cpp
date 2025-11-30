@@ -213,6 +213,21 @@ int MeshQuantities::HitCell()
 
 void MeshQuantities::Reflect()
 {
+    // 解析能带：直接翻转对应分量，保持 k 与 v 同步
+    if (band.use_analytic_band) {
+        if (idir == UP || idir == DOWN) {
+            kx = -kx;
+            vx = -vx;
+        } else if (idir == RIGHT || idir == LEFT) {
+            ky = -ky;
+            vy = -vy;
+        } else if (idir == FRONT || idir == BACK) {
+            kz = -kz;
+            vz = -vz;
+        }
+        return;
+    }
+
     //  Refelct the particle at the boundary
     if(idir==UP||idir==DOWN)
     {
@@ -242,6 +257,35 @@ void MeshQuantities::Reflect()
 
 void MeshQuantities::Diffuse()
 {
+    //解析能带分支：等能面随机选取状态并保证朝内
+    if (band.use_analytic_band) {
+        Particle tmp_p{};
+        tmp_p.energy = energy;
+        band.SelectAnalyticKState(&tmp_p, energy);
+        band.GetAnalyticV_FromTable(&tmp_p);
+
+        double vx_new = band.analytic_vx;
+        double vy_new = band.analytic_vy;
+        double vz_new = band.analytic_vz;
+
+        bool need_flip = false;
+        if (idir == UP    && vx_new < 0) need_flip = true;
+        if (idir == DOWN  && vx_new > 0) need_flip = true;
+        if (idir == LEFT  && vy_new < 0) need_flip = true;
+        if (idir == RIGHT && vy_new > 0) need_flip = true;
+        if (idir == FRONT && vz_new < 0) need_flip = true;
+        if (idir == BACK  && vz_new > 0) need_flip = true;
+
+        if (need_flip) {
+            tmp_p.kx = -tmp_p.kx; tmp_p.ky = -tmp_p.ky; tmp_p.kz = -tmp_p.kz;
+            vx_new = -vx_new; vy_new = -vy_new; vz_new = -vz_new;
+        }
+
+        kx = tmp_p.kx; ky = tmp_p.ky; kz = tmp_p.kz;
+        vx = vx_new; vy = vy_new; vz = vz_new;
+        return;
+    }
+
     //diffusive boundary condition
 
     int ibandold,itetold,isymold;

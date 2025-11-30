@@ -1911,105 +1911,95 @@ void MeshQuantities::particle_fly() {
   InPar(par_iter);
   
   Rho = (*c_par_charge)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
-  
   DA = (*c_da)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
   
+  // 获取电场
   if (par_type == 0) {
     Ex  = ChargeSign[par_type] * (*c_field_x)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
-      
     Ey  = ChargeSign[par_type] * (*c_field_y)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
-
     Ez  = ChargeSign[par_type] * (*c_field_z)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
   } else {
     Ex  = ChargeSign[par_type] * (*c_h_field_x)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
-      
     Ey  = ChargeSign[par_type] * (*c_h_field_y)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
-
     Ez  = ChargeSign[par_type] * (*c_h_field_z)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
   }
 
   iband = band.ibt[itet];
 
-  int loop = 0;
-
-  bool old_flag_getTetTime;
-
-  Particle old_par, new_par;
-
-  while (left_time > 0) {
-    // 速度/能量同步
-    if (band.use_analytic_band) {
+  // 初始速度
+  if (band.use_analytic_band) {
       band.GetAnalyticV_FromTable(&(*par_iter));
       vx = band.analytic_vx;
       vy = band.analytic_vy;
       vz = band.analytic_vz;
-    } else {
+  } else {
       GetV();
+  }
+
+  int loop = 0;
+  bool old_flag_getTetTime;
+  Particle old_par, new_par;
+
+  while (left_time > 0) {
+    // 每轮同步速度
+    if (band.use_analytic_band) {
+        band.GetAnalyticV_FromTable(&(*par_iter));
+        vx = band.analytic_vx;
+        vy = band.analytic_vy;
+        vz = band.analytic_vz;
+    } else {
+        GetV();
     }
+
     loop ++;
-    /*simulate until particle used up LeftTime */
     
-    if(Flag_GetTetTime)
-      {
-        /*time until particle changes tetrahedron in k space */
+    // --- 1. 飞行时间 ---
+    if(Flag_GetTetTime) {
         if (band.use_analytic_band) {
-          TetTf = band.GetAnalyticGridTime(&(*par_iter), Ex, Ey, Ez);
+            TetTf = band.GetAnalyticGridTime(&(*par_iter), Ex, Ey, Ez);
         } else {
-          TetTf=TetTime();
+            TetTf = TetTime();    
         }
-        Flag_GetTetTime=false;
-      }
+        Flag_GetTetTime = false;
+    }
     
-    if(Flag_GetCellTime)
-      {
-        /* time until next quadrant change in real space */
-        // 粒子到达所在的 Cell 边界所需要的时间
-        CellTf=CellTime();   
-        Flag_GetCellTime=false;
-      }
+    if(Flag_GetCellTime) {
+        CellTf = CellTime();   
+        Flag_GetCellTime = false;
+    }
     
-    if(Flag_GetPhScTime)
-      {
-        phrnl=-log(Random());
+    if(Flag_GetPhScTime) {
+        phrnl = -log(Random());
         Flag_GetPhScTime = false;
-      }
-    /* time until next phonon scattering process (variable Gamma scheme)
-       TODO: why compute it every time?
-    */
-    // 粒子发生声子散射前的飞行时间
+    }
     PhScTf = phrnl / band.gamtet[itet];
     
-
-    /*time until next impurity scattering process*/
-    if(band.use_analytic_band || iband == band.bandof[PELEC])
-    {
-        if(Flag_GetImpScTime)
-        {
+    // 杂质散射时间
+    if(band.use_analytic_band || iband == band.bandof[PELEC]) {
+        if(Flag_GetImpScTime) {
               imprnl = -log(Random());
               Flag_GetImpScTime = false;
         }
+        
         if (band.use_analytic_band) {
-            ImpScGamma = band.GetAnalyticImpurityRate(energy, DA, Rho, eps[SILICON], frickel);
-            //ImpScGamma = GetImpScGamma();
+             ImpScGamma = band.GetAnalyticImpurityRate(par_iter->energy, DA, Rho, eps[SILICON], frickel);
         } else {
-            ImpScGamma = GetImpScGamma();
+             ImpScGamma = GetImpScGamma();
         }
-        if (ImpScGamma > 1e-20)
-            ImpScTf=imprnl / ImpScGamma;
-        else
+        
+        if (ImpScGamma > 1.0e-20)
+            ImpScTf = imprnl / ImpScGamma;
+        else 
             ImpScTf = 1.0e99;
     }
-    else
-    {
+    else {
         ImpScTf = 2 * dt;
         ImpScGamma = 1.0 / scrt0;
     }
-    /*surface scattering time */
-    if((Flag_SurfaceScatter)
-      && ((*c_InSurfRegion)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)]))
-    {
-        if(Flag_GetSurfScTime) 
-        {
+
+    // 表面散射时间
+    if((Flag_SurfaceScatter) && ((*c_InSurfRegion)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)])) {
+        if(Flag_GetSurfScTime) {
             ssnl = -log(Random());
             Flag_GetSurfScTime = false;
         }
@@ -2019,40 +2009,47 @@ void MeshQuantities::particle_fly() {
           SurfScTf = ssnl / SurfScGamma;
         else
           SurfScTf = 2 * dt;
-    }
-    else
-    {
+    } else {
         SurfScTf = 2 * dt;
     }
     
     old_flag = flag;
 
-    /* shortest time as free flight time */
-    Tf=Min(TetTf,CellTf,PhScTf,ImpScTf,SurfScTf,left_time, flag);
+    // 最小时间
+    Tf = Min(TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, left_time, flag);
     
-//    ofile << "loop = " << loop << ' '<< TetTf << ' ' << CellTf << ' ' << PhScTf << ' ' << SurfScTf << ' ' << flag << endl;
-
-    //dump_par_info();
-
-    /*this should not happen, still leave it here */
-    if(Tf< MY_ZERO) 
-    {
-	    cout << "Tf < 0 " << old_flag << ' ' <<  old_flag_getTetTime << ' ' << loop << endl;
-      Flag_Catch=true;
-      break;
-      dump_par_info(old_par);
-      dump_par_info(new_par);
-
-      dump_time_info();
-      dump_par_info();
-      dump_cell_info(icell, jcell, kcell);
-      exit(1);
-      Flag_Catch=true;
+    // 浮点容错：微小负值归零
+    if (Tf < 0.0 && Tf > -1.0e-12) {
+        Tf = 0.0;
     }
-    
-      
-    /*adjust free flight times */
 
+    // 异常检查
+    if(Tf < MY_ZERO) {
+        cout << "-----------------------------------------------------" << endl;
+        cout << "Error: Tf < 0 detected!" << endl;
+        cout << "Loop: " << loop << "  Old_Flag: " << old_flag << "  New_Flag: " << flag << endl;
+        cout << "Particle ID: " << par_iter->par_id << "  Type: " << par_iter->par_type << endl;
+        cout << "-----------------------------------------------------" << endl;
+        cout << "TetTf (Grid) : " << TetTf << endl;
+        cout << "CellTf       : " << CellTf << endl;
+        cout << "PhScTf       : " << PhScTf << endl;
+        cout << "ImpScTf      : " << ImpScTf << endl;
+        cout << "SurfScTf     : " << SurfScTf << endl;
+        cout << "LeftTime     : " << left_time << endl;
+        cout << "-----------------------------------------------------" << endl;
+        cout << "Current State:" << endl;
+        cout << "Energy       : " << energy << " (Norm)" << endl;
+        cout << "K Vector     : " << kx << ", " << ky << ", " << kz << endl;
+        cout << "Velocity     : " << vx << ", " << vy << ", " << vz << endl;
+        cout << "Position     : " << x << ", " << y << ", " << z << endl;
+        cout << "ImpScGamma   : " << ImpScGamma << endl;
+        cout << "gamtet[itet] : " << band.gamtet[itet] << endl;
+        cout << "-----------------------------------------------------" << endl;
+        Flag_Catch = true;
+        break;
+    }
+      
+    // --- 2. 漂移更新 ---
     TetTf -= Tf;
     CellTf -= Tf;
     PhScTf -= Tf;
@@ -2060,21 +2057,14 @@ void MeshQuantities::particle_fly() {
     SurfScTf -= Tf;
     left_time -= Tf;
     
-    /*variable gamma schemes
-      TODO: check it!
-    */
     phrnl -= band.gamtet[itet] * Tf;
-    /* when particle is not precessed with Imp/SurfSc, imprnl/ssnl is useless, and can be any value(><=0)
-       TODO: check
-      */
     imprnl -= ImpScGamma * Tf;
     ssnl   -= SurfScGamma * Tf;
     
-    /* update kcell-vektor */
     kx += Ex * Tf;
     ky += Ey * Tf;
     kz += Ez * Tf;
-    /*update energy*/
+    
     energy += (vx * Ex + vy * Ey + vz * Ez) * Tf;
 
     x += vx * Tf;
@@ -2082,118 +2072,95 @@ void MeshQuantities::particle_fly() {
     z += vz * Tf;
    
     if(energy < 0) {
-      dump_time_info();
-      dump_par_info();
-      dump_cell_info(icell, jcell, kcell);
-     /*eliminate this particle */
       Flag_Catch = true;
-      //exit(1);
       break;
     }
     
-    /*update r-vektor */
-   
+    // --- 3. 事件 ---
     switch (flag) {
-      /*1 for tetrahedron changes*/
-    case 1: {
-      /*process tetrahedron change event*/
-      // 移动到不同的四面体
-      HitTet();
-      /*set flag to true because we need recalculate time */
-      Flag_GetTetTime = true;
-      Flag_GetCellTime = true;
+    case 1: { 
+      if (band.use_analytic_band) {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+      } else {
+          HitTet();
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+      }
       break;
     }
-      /* cell changes */
     case 2: {
-      /*process cell change evenet */
       if (HitCell()) {
-        Flag_GetTetTime=true;
-        Flag_GetCellTime=true;
+        Flag_GetTetTime = true;
+        Flag_GetCellTime = true;
       } else {
-	      trace_back();
+        trace_back();
         fly_too_far = true;
       }
-      
       break;
     }
-      /* phonon scattering*/
     case 3: {
-        /* increase number of phonon scattering*/
-      /*process event corresponds to particle */
-      if (par_type == PELEC) {
-        if (band.use_analytic_band) {
-          band.AnalyticPhononScatter(&(*par_iter));
-          Flag_SelfScatter = band.analytic_self_scatter;
-        } else {
-          ElectronPhononScatter();
-        }
+      if (par_type == PELEC) { 
+          if (band.use_analytic_band) {
+              band.AnalyticPhononScatter(&(*par_iter));
+              Flag_SelfScatter = band.analytic_self_scatter;
+          } else {
+              ElectronPhononScatter();
+          }
+      } else if (par_type == PHOLE) { 
+          HolePhononScatter();
       }
-      else if (par_type == PHOLE) 
-        HolePhononScatter();
-      /// else// if (ParType==POXEL) OxideElectronPhononScatter();
-      /*TODO: check */
-      if (!Flag_SelfScatter)
-        {
+
+      if (!Flag_SelfScatter) {
           Flag_GetTetTime = true;
           Flag_GetCellTime = true;
           sttt.phononScatter ++;
-        }
+      }
       Flag_GetPhScTime = true;
       break;
     }
-      /*impurity scattering*/
     case 4 : {
-
       OutPar(&old_par);
       
-      /* increase number of impurity scattering */
       if(par_type == PELEC) {
-        if (band.use_analytic_band) {
-          band.AnalyticImpurityScatter(&(*par_iter), DA, Rho, eps[SILICON], frickel, ImpScGamma);
-          Flag_SelfScatter = band.analytic_self_scatter;
-        } else {
-          ElectronImpurityScatter();
-        }
+          if (band.use_analytic_band) {
+              band.AnalyticImpurityScatter(&(*par_iter), DA, Rho, eps[SILICON], frickel, ImpScGamma);
+              Flag_SelfScatter = band.analytic_self_scatter;
+          } else {
+              ElectronImpurityScatter();
+          }
       }
 
       OutPar(&new_par);
-	 
+      
       old_flag_getTetTime = Flag_SelfScatter;
-
-      if(!Flag_SelfScatter)
-        {
-          Flag_GetTetTime=true;
-          Flag_GetCellTime=true;
+      if(!Flag_SelfScatter) {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
           sttt.impurityScatter ++;
-        }
-      Flag_GetImpScTime=true;
+      }
+      Flag_GetImpScTime = true;
       break;
     }
-      /*surface scattering*/
     case 5 : {
-      /*process surface scattering event */
       ParticleSurfaceScatter();
-      /*TODO */
-      if(!Flag_SelfScatter)
-        {
-          Flag_GetTetTime=true;
-          Flag_GetCellTime=true;
-        }
-      Flag_GetSurfScTime=true;
+      
+      if(!Flag_SelfScatter) {
+          Flag_GetTetTime = true;
+          Flag_GetCellTime = true;
+      }
+      Flag_GetSurfScTime = true;
       break;
     }
-   } // end of switch
-    /*stop while loop if particle is already caught */
-  if(fly_too_far || Flag_Catch) break;
-  }
+   } // end switch
 
-  /*mark if caught*/
+   if(fly_too_far || Flag_Catch) break;
+  } // end while
+
   if(Flag_Catch) {
       par_iter->i = - 9999;
       catch_par_num ++;
   } else {
-      /*save the updated attributes to particle array */
     OutPar(par_iter);
     if (!fly_too_far) {
       par_iter->left_time = dt;
@@ -2206,7 +2173,6 @@ void MeshQuantities::particle_fly() {
     err_message(TOO_MANY_LOOPS, "particle fly");
     dump_par_info();
   }
-  //ofile.close();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2910,35 +2876,59 @@ void MeshQuantities::linear_poisson_solver() {
    double *vol_val;
    int i,j,k,icont, iplane;
    double * vadd_val;
+   
+   // 提取电势与材料属性
+   double * pot_val;
+   int * p_mat_val;
 
    p_vadd->ExtractView(&vadd_val);
    p_dop->ExtractView(&p_dop_value);
    p_volume->ExtractView(&vol_val);
-    /*initialize with zero*/
+   
+   /*initialize with zero*/
    p_rhs->PutScalar(0);
 
    p_par_charge->ExtractView(&p_par_charge_value);
    p_rhs->ExtractView(&p_rhs_value);
+   p_poisson_pot->ExtractView(&pot_val);
+   p_material->ExtractView(&p_mat_val);
 
    /*only consider the silicon part */
    for (i = p_ibegin; i <= p_iend; i ++)
     for (k = p_kbegin; k <= p_kend; k ++)
       for (j = p_jbegin_nonoverlap; j <= p_jend_nonoverlap; j ++)
-       if (fabs(p_par_charge_value[P_LINDEX_ONE(i,j,k)]) > 0){
-	 /* contain two parts, particle charge & dop, dop is fixed at
-	   beginning.*/
-	 p_rhs_value[P_LINDEX_ONE(i,j,k)] = 
-	   p_par_charge_value[P_LINDEX_ONE(i,j,k)] * vol_val[P_LINDEX_ONE(i,j,k)] + p_dop_value[P_LINDEX_ONE(i,j,k)];
-       }
+      {
+         int idx = P_LINDEX_ONE(i,j,k);
+         
+         if (band.use_analytic_band) {
+             // 解析能带：显式加入空穴
+             double rhs_val = p_dop_value[idx] + p_par_charge_value[idx] * vol_val[idx];
+             
+             if (p_mat_val[idx] & NODE_SILICON) {
+                 double phi = pot_val[idx];
+                 double p_dens = band.Ni * exp(-phi);
+                 double Q_hole = p_dens * vol_val[idx];
+                 rhs_val += Q_hole;
+             }
+             
+             p_rhs_value[idx] = rhs_val;
+         } else {
+             // 全能带：保持原逻辑
+             if (fabs(p_par_charge_value[idx]) > 0){
+                 p_rhs_value[idx] = 
+                   p_par_charge_value[idx] * vol_val[idx] + p_dop_value[idx];
+             }
+         }
+      }
 
    for(icont=0;icont<contact.size();icont++)
     for(iplane=0;iplane<contact[icont].NumContactPlane;iplane++)
       for(i=contact[icont].BeginI[iplane];i<=contact[icont].EndI[iplane];i++)
-	for(k=contact[icont].BeginK[iplane];k<=contact[icont].EndK[iplane];k++)
-	  for(j=contact[icont].BeginJ[iplane];j<=contact[icont].EndJ[iplane];j++)
-	    if ((j >= p_jbegin_nonoverlap) && (j <= p_jend_nonoverlap)){
-	      p_rhs_value[P_LINDEX_ONE(i,j,k)] = contact[icont].CurrentVapp + vadd_val[P_LINDEX_ONE(i,j,k)] + contact[icont].PhiMS;
-	    }
+    for(k=contact[icont].BeginK[iplane];k<=contact[icont].EndK[iplane];k++)
+      for(j=contact[icont].BeginJ[iplane];j<=contact[icont].EndJ[iplane];j++)
+        if ((j >= p_jbegin_nonoverlap) && (j <= p_jend_nonoverlap)){
+          p_rhs_value[P_LINDEX_ONE(i,j,k)] = contact[icont].CurrentVapp + vadd_val[P_LINDEX_ONE(i,j,k)] + contact[icont].PhiMS;
+        }
  }
 
  void MeshQuantities::init_nonlinear_poisson() {

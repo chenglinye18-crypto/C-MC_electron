@@ -3689,6 +3689,19 @@ void Band::GETINDENS(void)
     ep0=2e0*ep0;
     Ni=sqrt(en0*ep0*exp(-sieg));
 
+    // 打印全能带计算得到的 Ni，便于与解析模型对比
+    if (conc0 > 0) {
+        double Ni_cm3 = Ni * conc0 / 1.0e6; // 1/m^3 -> 1/cm^3
+        cout << "--------------------------------------------------" << endl;
+        cout << "  [FullBand Check] Intrinsic Carrier Density (Ni)" << endl;
+        cout << "  Normalized Ni : " << Ni << endl;
+        cout << "  Calculated Ni : " << Ni_cm3 << " cm^-3" << endl;
+        cout << "--------------------------------------------------" << endl;
+    } else {
+        cout << "  [FullBand Check] Normalized Ni: " << Ni
+             << " (conc0 not set, cannot convert to cm^-3)" << endl;
+    }
+
     //____end of GETINDENS
     return;
 }
@@ -4502,12 +4515,18 @@ void Band::IELEC(string path)
 
         // 本征载流子浓度: ni = A_ref * T^1.5 * exp(-Eg/2kT)
         double A_ref = 3.87e16; // cm^-3 K^-1.5
-        double Ni_real_cm3 = A_ref * pow(T0, 1.5) * exp(-sieg / 2.0);
+        double Ni_calculated_cm3 = A_ref * pow(T0, 1.5) * exp(-sieg / 2.0);
+
+        // 基于全能带校准的修正系数
+        double Ni_correction = 0.1534; 
+        double Ni_real_cm3 = Ni_calculated_cm3 * Ni_correction;
 
         // cm^-3 -> m^-3，再归一化
         Ni = Ni_real_cm3 * 1.0e6 / conc0;
 
-        cout << "  Ni calculated: " << Ni_real_cm3 << " cm^-3 (Normalized: " << Ni << ")" << endl;
+        cout << "  [Calibration] Ni Raw: " << Ni_calculated_cm3 << " cm^-3" << endl;
+        cout << "  [Calibration] Correction Factor: " << Ni_correction << endl;
+        cout << "  [Calibration] Ni Final: " << Ni_real_cm3 << " cm^-3 (Normalized: " << Ni << ")" << endl;
         cout << "  Band gap (sieg): " << sieg * eV0 << " eV" << endl;
 
         // 构建并读取解析注入/密度表

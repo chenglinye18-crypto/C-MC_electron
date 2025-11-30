@@ -53,8 +53,20 @@ void MeshQuantities::ParticleSurfaceScatter()
 	}
       	else
       	{
-   		if(par_type==PELEC)
-              ElectronSurfacePhononScatter();
+          if(par_type==PELEC) {
+              if (band.use_analytic_band) {
+                  Particle tmp_p{};
+                  tmp_p.kx = kx; tmp_p.ky = ky; tmp_p.kz = kz;
+                  tmp_p.energy = energy;
+                  band.AnalyticPhononScatter(&tmp_p);
+                  kx = tmp_p.kx; ky = tmp_p.ky; kz = tmp_p.kz;
+                  vx = band.analytic_vx; vy = band.analytic_vy; vz = band.analytic_vz;
+                  energy = tmp_p.energy;
+                  Flag_SelfScatter = band.analytic_self_scatter;
+              } else {
+                  ElectronSurfacePhononScatter();
+              }
+          }
       		else if(par_type==PHOLE)
               HoleSurfacePhononScatter();
       	}
@@ -190,4 +202,3 @@ void MeshQuantities::ElectronSurfacePhononScatter()
         }
     
 }
-
