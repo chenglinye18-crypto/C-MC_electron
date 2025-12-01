@@ -575,7 +575,12 @@ void Band::BuildAnalyticScatteringTable() {
             max_gamma = sumscatt[itab][band_idx];
         }
     }
-    for(int it = 0; it < nt; it++) {
+
+    // [修复] 确保 gamtet 分配并填充最大散射率
+    if (nt <= 0) nt = 1;
+    int fill_nt = nt;
+    if (fill_nt > MNTet) fill_nt = MNTet;
+    for(int it = 0; it < fill_nt; it++) {
         gamtet[it] = max_gamma;
     }
     gamma[PELEC] = max_gamma;
@@ -670,7 +675,7 @@ double Band::GetAnalyticGridTime(Particle* p, double Fx, double Fy, double Fz) {
     update_dt(p->ky, Fy, min_dt);
     update_dt(p->kz, Fz, min_dt);
 
-    if (min_dt < 1.0e-15) min_dt = 1.0e-15;
+    if (min_dt < 1.0e-8) min_dt = 1.0e-8;
     return min_dt;
 }
 

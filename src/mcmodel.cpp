@@ -2017,6 +2017,23 @@ void MeshQuantities::particle_fly() {
 
     // 最小时间
     Tf = Min(TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, left_time, flag);
+
+    /*
+    if (par_iter->par_id == 0 && loop <= 20) {
+        cout << "--- Debug FullBand Flight (Loop " << loop << ") ---" << endl;
+        cout << "Particle ID : " << par_iter->par_id << endl;
+        cout << "TetTf       : " << TetTf << endl;
+        cout << "CellTf      : " << CellTf << endl;
+        cout << "PhScTf      : " << PhScTf << endl;
+        cout << "ImpScTf     : " << ImpScTf << endl;
+        cout << "SurfScTf    : " << SurfScTf << endl;
+        cout << "LeftTime    : " << left_time << endl;
+        cout << "Selected Tf : " << Tf << " (Flag: " << flag << ")" << endl;
+        cout << "Current k   : " << kx << ", " << ky << ", " << kz << endl;
+        cout << "Current v   : " << vx << ", " << vy << ", " << vz << endl;
+        cout << "-------------------------------------------------" << endl;
+    }
+        */
     
     // 浮点容错：微小负值归零
     if (Tf < 0.0 && Tf > -1.0e-12) {
