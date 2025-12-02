@@ -271,9 +271,9 @@ void MeshQuantities::Diffuse()
         band.SelectAnalyticKState(&tmp_p, energy);
         band.GetAnalyticV_FromTable(&tmp_p);
 
-        double vx_new = tmp_p.vx; 
-        double vy_new = tmp_p.vy;
-        double vz_new = tmp_p.vz;
+        double vx_new = band.analytic_vx;
+        double vy_new = band.analytic_vy;
+        double vz_new = band.analytic_vz;
 
         bool need_flip = false;
         if (idir == UP    && vx_new < 0) need_flip = true;
