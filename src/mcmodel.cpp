@@ -1941,12 +1941,25 @@ void MeshQuantities::particle_fly() {
   Particle old_par, new_par;
 
   while (left_time > 0) {
-    // 每轮同步速度
+    // ----------------------------------------------------
+    // 数据同步与速度更新
+    // ----------------------------------------------------
     if (band.use_analytic_band) {
+        // 同步 MeshQuantities 成员到粒子对象，确保查表使用最新 k/E
+        par_iter->kx = kx;
+        par_iter->ky = ky;
+        par_iter->kz = kz;
+        par_iter->energy = energy;
+        par_iter->x = x; par_iter->y = y; par_iter->z = z;
+
+        // 查表更新速度/能量
         band.GetAnalyticV_FromTable(&(*par_iter));
-        vx = band.analytic_vx;
-        vy = band.analytic_vy;
-        vz = band.analytic_vz;
+
+        // 同步回成员变量，供 CellTime/Drift 使用
+        vx = par_iter->vx; 
+        vy = par_iter->vy;
+        vz = par_iter->vz;
+        energy = par_iter->energy;
     } else {
         GetV();
     }
@@ -1963,6 +1976,12 @@ void MeshQuantities::particle_fly() {
         Flag_GetTetTime = false;
     }
     
+    //------DEBUG------当xyz为0时打印位置方便我打断点
+    if (x == 0.0 && y == 0.0 && z == 0.0) {
+        cout << "Debug: Particle at origin!" << endl;
+    }
+    //------DEBUG------ 
+
     if(Flag_GetCellTime) {
         CellTf = CellTime();   
         Flag_GetCellTime = false;
@@ -2018,6 +2037,11 @@ void MeshQuantities::particle_fly() {
     // 最小时间
     Tf = Min(TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, left_time, flag);
 
+    //------DEBUG------当CellTf最小时打印位置方便我打断点
+    if (flag == 2) {
+        cout << "Debug: CellTf is minimum at loop " << loop << "!" << endl;
+    }
+
     /*
     if (par_iter->par_id == 0 && loop <= 20) {
         cout << "--- Debug FullBand Flight (Loop " << loop << ") ---" << endl;
@@ -2056,9 +2080,9 @@ void MeshQuantities::particle_fly() {
         cout << "-----------------------------------------------------" << endl;
         cout << "Current State:" << endl;
         cout << "Energy       : " << energy << " (Norm)" << endl;
-        cout << "K Vector     : " << kx << ", " << ky << ", " << kz << endl;
-        cout << "Velocity     : " << vx << ", " << vy << ", " << vz << endl;
-        cout << "Position     : " << x << ", " << y << ", " << z << endl;
+        cout << "K Vector     : " << kx * spk0<< ", " << ky * spk0<< ", " << kz * spk0<< endl;
+        cout << "Velocity     : " << vx * velo0<< ", " << vy * velo0<< ", " << vz * velo0<< endl;
+        cout << "Position     : " << x * spr0 << ", " << y * spr0 << ", " << z * spr0 << endl;
         cout << "ImpScGamma   : " << ImpScGamma << endl;
         cout << "gamtet[itet] : " << band.gamtet[itet] << endl;
         cout << "-----------------------------------------------------" << endl;

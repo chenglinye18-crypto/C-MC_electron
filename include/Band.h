@@ -12,7 +12,7 @@ class Band
     //CHARACTER*8 Typename[NumParType]
 public:
 
-    bool use_analytic_band = false;
+    bool use_analytic_band = true;
     char Typename[NumParType][9];
     //     number of scattering processes (electrons)
     int scpre;

@@ -89,6 +89,9 @@ double MeshQuantities::CellTime()
 	CellTime=0;
       }
 
+    if(CellTime < MY_ZERO)
+  cout<< tx << ' ' << ty << ' ' << tz << ' ' << vx << ' ' << vy << ' ' << vz << endl;
+
     return CellTime;
 }
 
@@ -213,17 +216,21 @@ int MeshQuantities::HitCell()
 
 void MeshQuantities::Reflect()
 {
-    // 解析能带：直接翻转对应分量，保持 k 与 v 同步
+    // 解析能带：直接翻转对应分量，保持 k 与 v 同步，并轻推离边界
     if (band.use_analytic_band) {
+        //double eps_nudge = 1.0e-10;
         if (idir == UP || idir == DOWN) {
             kx = -kx;
             vx = -vx;
+            //if (idir == UP) x += eps_nudge; else x -= eps_nudge;
         } else if (idir == RIGHT || idir == LEFT) {
             ky = -ky;
             vy = -vy;
+            //if (idir == LEFT) y += eps_nudge; else y -= eps_nudge;
         } else if (idir == FRONT || idir == BACK) {
             kz = -kz;
             vz = -vz;
+            //if (idir == FRONT) z += eps_nudge; else z -= eps_nudge;
         }
         return;
     }
@@ -264,9 +271,9 @@ void MeshQuantities::Diffuse()
         band.SelectAnalyticKState(&tmp_p, energy);
         band.GetAnalyticV_FromTable(&tmp_p);
 
-        double vx_new = band.analytic_vx;
-        double vy_new = band.analytic_vy;
-        double vz_new = band.analytic_vz;
+        double vx_new = tmp_p.vx; 
+        double vy_new = tmp_p.vy;
+        double vz_new = tmp_p.vz;
 
         bool need_flip = false;
         if (idir == UP    && vx_new < 0) need_flip = true;
@@ -283,6 +290,14 @@ void MeshQuantities::Diffuse()
 
         kx = tmp_p.kx; ky = tmp_p.ky; kz = tmp_p.kz;
         vx = vx_new; vy = vy_new; vz = vz_new;
+        //// 轻推粒子离开边界，避免 CellTf=0 死锁
+        //double eps_nudge = 1.0e-9;
+        //if (idir == UP) x += eps_nudge;
+        //else if (idir == DOWN) x -= eps_nudge;
+        //else if (idir == LEFT) y += eps_nudge;
+        //else if (idir == RIGHT) y -= eps_nudge;
+        //else if (idir == FRONT) z += eps_nudge;
+        //else if (idir == BACK) z -= eps_nudge;
         return;
     }
 
