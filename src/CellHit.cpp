@@ -272,7 +272,7 @@ void MeshQuantities::Diffuse()
         band.GetAnalyticV_FromTable(&tmp_p);
 
         double vx_new = band.analytic_vx;
-        double vy_new = band.analytic_vy;
+        double vy_new =  band.analytic_vy;
         double vz_new = band.analytic_vz;
 
         bool need_flip = false;
