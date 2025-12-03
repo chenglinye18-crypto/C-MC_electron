@@ -52,22 +52,34 @@ void MeshQuantities::compute_par_num() {
          /* 按电荷占比分配粒子数，再 +1 保证至少一个 */
          cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)] =
            int (1e-10 + electron_charge[C_LINDEX_GHOST_ONE(i,j,k)] / sum_charge[PELEC] * electron_number) + 1; 
-         cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] =
-           int (1e-10 + hole_charge[C_LINDEX_GHOST_ONE(i,j,k)] / sum_charge[PHOLE] * hole_number) + 1;
+         
+         // 解析能带模式下，强制空穴数量为 0
+         if (band.use_analytic_band) {
+             cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = 0;
+         } else {
+             cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] =
+               int (1e-10 + hole_charge[C_LINDEX_GHOST_ONE(i,j,k)] / sum_charge[PHOLE] * hole_number) + 1;
+         }
 
          /* 如果自动计算的数量超过了用户下限，则提升下限，避免后面被覆盖掉 */
          if (cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)] > desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)])
 	   desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)] = cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)];
 
-         if (cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] > desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)])
-	   desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
+         // 解析能带模式下，不更新空穴期望值
+         if (!band.use_analytic_band) {
+             if (cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] > desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)])
+	       desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
+         }
 
 	 /* 至少保证默认的粒子数，下限保护 */
 	 if (desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)] < default_electron_num)
 	   desired_ele_num[C_LINDEX_GHOST_ONE(i,j,k)] = default_electron_num;
 
-	 if (desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] < default_hole_num)
-	   desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = default_hole_num;
+         // 解析能带模式下，不处理空穴默认值
+         if (!band.use_analytic_band) {
+	     if (desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] < default_hole_num)
+	       desired_hole_num[C_LINDEX_GHOST_ONE(i,j,k)] = default_hole_num;
+         }
 
        /* count the total carrier number on our local process, excluding the
 	* ghost cells */
@@ -88,8 +100,15 @@ void MeshQuantities::compute_total_par_num(){
 
    for (i = c_ibegin; i <= c_iend; i ++)
      for (k = c_kbegin; k <= c_kend; k ++)
-       for (j = c_jbegin; j <= c_jend; j ++)
-	 local_par_num += cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)] + cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
+       for (j = c_jbegin; j <= c_jend; j ++) {
+         // 总是统计电子
+	 local_par_num += cell_electron_num[C_LINDEX_GHOST_ONE(i,j,k)];
+         
+         // 只有在非解析能带模式下，才统计空穴
+         if (!band.use_analytic_band) {
+             local_par_num += cell_hole_num[C_LINDEX_GHOST_ONE(i,j,k)];
+         }
+       }
 
    /*count the total number by mpi_allreduce */
    MPI_Allreduce(&local_par_num, &par_num, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -160,6 +179,7 @@ void MeshQuantities::init_particle_data() {
 
   /* for each cells and each particle type */
   for(iptype = 0; iptype < 2; iptype ++) {
+    // 解析模式下跳过空穴生成
     if (band.use_analytic_band && iptype == PHOLE) continue;
 
     for (i = c_ibegin; i <= c_iend; i ++)

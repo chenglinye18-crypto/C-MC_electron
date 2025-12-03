@@ -90,7 +90,7 @@ double MeshQuantities::CellTime()
       }
 
     if(CellTime < MY_ZERO)
-  cout<< tx << ' ' << ty << ' ' << tz << ' ' << vx << ' ' << vy << ' ' << vz << endl;
+  cout<< tx << ' ' << ty << ' ' << tz << ' ' << vx * velo0<< ' ' << vy * velo0<< ' ' << vz * velo0<< ' ' << x * spr0 << ' ' << y  * spr0 << ' ' << z  * spr0 << ' '<< endl;
 
     return CellTime;
 }
