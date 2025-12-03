@@ -37,8 +37,8 @@ std::vector<double> GenerateNonUniformTicks() {
     double valley_loc2 = 0;
     double fine_region_width = 0.3; // 加密区域半径
     
-    double step_coarse = 0.2; // 粗网格步长
-    double step_fine = 0.02;  // 细网格步长
+    double step_coarse = 0.1; // 粗网格步长
+    double step_fine = 0.01;  // 细网格步长
 
     while (current <= k_end + 1e-5) {
         ticks.push_back(current);

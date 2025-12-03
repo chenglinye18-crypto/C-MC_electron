@@ -1945,24 +1945,26 @@ void MeshQuantities::particle_fly() {
     // 数据同步与速度更新
     // ----------------------------------------------------
     if (band.use_analytic_band) {
+        // 用当前 k/E 查表更新速度
+            // 数据同步与速度更新
+    // ----------------------------------------------------
+    if (band.use_analytic_band) {
         // 同步 MeshQuantities 成员到粒子对象，确保查表使用最新 k/E
         par_iter->kx = kx;
         par_iter->ky = ky;
         par_iter->kz = kz;
         par_iter->energy = energy;
         par_iter->x = x; par_iter->y = y; par_iter->z = z;
-
-        // 查表更新速度/能量
         band.GetAnalyticV_FromTable(&(*par_iter));
-
-        // 同步回成员变量，供 CellTime/Drift 使用
-        vx = par_iter->vx; 
-        vy = par_iter->vy;
-        vz = par_iter->vz;
+        vx = band.analytic_vx;
+        vy = band.analytic_vy;
+        vz = band.analytic_vz;
         energy = par_iter->energy;
     } else {
-        GetV();
+    GetV();
     }
+  }
+    
 
     loop ++;
     
@@ -2038,9 +2040,9 @@ void MeshQuantities::particle_fly() {
     Tf = Min(TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, left_time, flag);
 
     //------DEBUG------当CellTf最小时打印位置方便我打断点
-    if (flag == 2) {
-        cout << "Debug: CellTf is minimum at loop " << loop << "!" << endl;
-    }
+    //if (flag == 2) {
+    //    cout << "Debug: CellTf is minimum at loop " << loop << "!" << endl;
+    //}
 
     /*
     if (par_iter->par_id == 0 && loop <= 20) {
@@ -2145,6 +2147,10 @@ void MeshQuantities::particle_fly() {
           if (band.use_analytic_band) {
               band.AnalyticPhononScatter(&(*par_iter));
               Flag_SelfScatter = band.analytic_self_scatter;
+              kx = par_iter->kx; ky = par_iter->ky; kz = par_iter->kz;
+              energy = par_iter->energy;
+              band.GetAnalyticV_FromTable(&(*par_iter));
+              vx = band.analytic_vx; vy = band.analytic_vy; vz = band.analytic_vz;
           } else {
               ElectronPhononScatter();
           }
@@ -2167,6 +2173,10 @@ void MeshQuantities::particle_fly() {
           if (band.use_analytic_band) {
               band.AnalyticImpurityScatter(&(*par_iter), DA, Rho, eps[SILICON], frickel, ImpScGamma);
               Flag_SelfScatter = band.analytic_self_scatter;
+              kx = par_iter->kx; ky = par_iter->ky; kz = par_iter->kz;
+              energy = par_iter->energy;
+              band.GetAnalyticV_FromTable(&(*par_iter));
+              vx = band.analytic_vx; vy = band.analytic_vy; vz = band.analytic_vz;
           } else {
               ElectronImpurityScatter();
           }
@@ -4141,6 +4151,8 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   double ml_val = 0.916;   // 纵向有效质量（相对 m0）
   double mt_val = 0.19;    // 横向有效质量（相对 m0）
   double alpha_val = 0.5;  // 非抛物线性系数 (1/eV)
+  double alpha;
+  double alpha_norm;
 	
   //     energy [eV]/electon rest mass [kg]/Planck's constant [eVs] /
   //____electron charge [As]
