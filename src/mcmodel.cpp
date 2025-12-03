@@ -568,6 +568,8 @@ void MeshQuantities::run() {
     }
 
     /*particle should be conserved, check it */
+    // Debug helper: audit particle distribution across valid/ghost cells
+    if (mpi_rank == 0) Audit_Particles();
    check_par_number();
 
    /* output statistical result, every stat_step, this may be wrong
@@ -1643,38 +1645,50 @@ void MeshQuantities::local_migrate() {
 	
 	current_par_list = &par_list[C_LINDEX_GHOST_ONE(i,j,k)];
 	
-	for (par_iter = current_par_list->begin(); par_iter != current_par_list->end(); )
-	  if (par_iter->i < 0)
-	    par_iter = current_par_list->erase(par_iter);
-	  else
-	    if ((par_iter->i != i) || (par_iter->j != j) || (par_iter->k != k)) {
+	for (par_iter = current_par_list->begin(); par_iter != current_par_list->end(); ) {
 
-          // Debug: 粒子是否越界 (X/Y/Z)
-          bool is_j_out = (par_iter->j < c_jbegin_ghost || par_iter->j > c_jend_ghost);
-          bool is_i_out = (par_iter->i < c_ibegin || par_iter->i > c_iend);
-          bool is_k_out = (par_iter->k < c_kbegin || par_iter->k > c_kend);
-
-          if (is_j_out || is_i_out || is_k_out) {
-              cout << "[CRITICAL LEAK] Particle Escaped Domain!" << endl;
-              cout << "  ID: " << par_iter->par_id << " Type: " << par_iter->par_type << endl;
-              cout << "  From Cell: (" << i << ", " << j << ", " << k << ")" << endl;
-              cout << "  To Cell  : (" << par_iter->i << ", " << par_iter->j << ", " << par_iter->k << ")" << endl;
-              cout << "  Position : (" << par_iter->x * spr0 << ", " << par_iter->y * spr0 << ", " << par_iter->z * spr0 << ")" << endl;
-              
-              if (is_i_out) cout << "  -> X-direction LEAK (i range: " << c_ibegin << "~" << c_iend << ")" << endl;
-              if (is_j_out) cout << "  -> Y-direction LEAK (j range: " << c_jbegin_ghost << "~" << c_jend_ghost << ")" << endl;
-              if (is_k_out) cout << "  -> Z-direction LEAK (k range: " << c_kbegin << "~" << c_kend << ")" << endl;
-
-              // 防止越界 push_back 破坏内存，直接删除该粒子
+          // 先拦截负索引（正常 catch 会设为 -9999，其他负值视为异常逃逸）
+          if (par_iter->i < 0) {
+              if (par_iter->i != -9999) {
+                  cout << "[CRITICAL LEAK] Particle deleted with negative index!" << endl;
+                  cout << "  ID: " << par_iter->par_id << endl;
+                  cout << "  Index i: " << par_iter->i << " (Should be -9999 if caught)" << endl;
+                  cout << "  Pos: " << par_iter->x * spr0 << ", " << par_iter->y * spr0 << ", " << par_iter->z * spr0 << endl;
+                  cout << "  From Cell: (" << i << "," << j << "," << k << ")" << endl;
+              }
               par_iter = current_par_list->erase(par_iter);
               continue;
           }
+
+	  if ((par_iter->i != i) || (par_iter->j != j) || (par_iter->k != k)) {
+
+            // Debug: 粒子是否越界 (X/Y/Z)
+            bool is_j_out = (par_iter->j < c_jbegin_ghost || par_iter->j > c_jend_ghost);
+            bool is_i_out = (par_iter->i < c_ibegin || par_iter->i > c_iend);
+            bool is_k_out = (par_iter->k < c_kbegin || par_iter->k > c_kend);
+
+            if (is_j_out || is_i_out || is_k_out) {
+                cout << "[CRITICAL LEAK] Particle Escaped Domain!" << endl;
+                cout << "  ID: " << par_iter->par_id << " Type: " << par_iter->par_type << endl;
+                cout << "  From Cell: (" << i << ", " << j << ", " << k << ")" << endl;
+                cout << "  To Cell  : (" << par_iter->i << ", " << par_iter->j << ", " << par_iter->k << ")" << endl;
+                cout << "  Position : (" << par_iter->x * spr0 << ", " << par_iter->y * spr0 << ", " << par_iter->z * spr0 << ")" << endl;
+                
+                if (is_i_out) cout << "  -> X-direction LEAK (i range: " << c_ibegin << "~" << c_iend << ")" << endl;
+                if (is_j_out) cout << "  -> Y-direction LEAK (j range: " << c_jbegin_ghost << "~" << c_jend_ghost << ")" << endl;
+                if (is_k_out) cout << "  -> Z-direction LEAK (k range: " << c_kbegin << "~" << c_kend << ")" << endl;
+
+                // 越界粒子直接删除，避免 push_back 越界
+                par_iter = current_par_list->erase(par_iter);
+                continue;
+            }
 
 	    par_list[C_LINDEX_GHOST_ONE(par_iter->i, par_iter->j, par_iter->k)].push_back(*par_iter);
 	    
 	    par_iter = current_par_list->erase(par_iter);
 	  }
 	  else par_iter ++;
+        }
       
     }
 }
@@ -1965,7 +1979,7 @@ void MeshQuantities::particle_fly() {
     // ----------------------------------------------------
     // 数据同步与速度更新
     // ----------------------------------------------------
-    if (band.use_analytic_band) {
+    
         // 用当前 k/E 查表更新速度
             // 数据同步与速度更新
     // ----------------------------------------------------
@@ -1984,8 +1998,6 @@ void MeshQuantities::particle_fly() {
     } else {
     GetV();
     }
-  }
-    
 
     loop ++;
     
@@ -2245,6 +2257,46 @@ void MeshQuantities::particle_fly() {
     err_message(TOO_MANY_LOOPS, "particle fly");
     dump_par_info();
   }
+}
+
+// 审计粒子：统计有效区与 Ghost/无效区的数量
+void MeshQuantities::Audit_Particles() {
+    long long total_in_memory = 0;
+    long long ghost_particles = 0;
+    long long valid_particles = 0;
+
+    for (size_t idx = 0; idx < par_list.size(); idx++) {
+        int count = par_list[idx].size();
+        total_in_memory += count;
+
+        if (count > 0) {
+            auto it = par_list[idx].begin();
+            int p_i = it->i;
+            int p_j = it->j;
+            int p_k = it->k;
+
+            bool is_valid = (p_i >= c_ibegin && p_i <= c_iend) &&
+                            (p_j >= c_jbegin && p_j <= c_jend) &&
+                            (p_k >= c_kbegin && p_k <= c_kend);
+
+            if (is_valid) {
+                valid_particles += count;
+            } else {
+                ghost_particles += count;
+                if (ghost_particles < 50 || ghost_particles % 10000 == 0) {
+                    cout << "[ZOMBIE FOUND] Cell Index: " << idx
+                         << " (Par Coord: " << p_i << "," << p_j << "," << p_k << ")"
+                         << " Count: " << count << endl;
+                }
+            }
+        }
+    }
+
+    cout << "================ PARTICLE AUDIT ================" << endl;
+    cout << "Total In Memory : " << total_in_memory << endl;
+    cout << "Valid Region    : " << valid_particles << " (Should match 'actual')" << endl;
+    cout << "Ghost/Invalid   : " << ghost_particles << " (The MISSING ones!)" << endl;
+    cout << "================================================" << endl;
 }
 
 /* -------------------------------------------------------------------------- */

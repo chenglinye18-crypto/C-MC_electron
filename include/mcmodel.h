@@ -424,6 +424,7 @@ class MeshQuantities {
   void init_ep_range();
 
   void check_par_number();
+  void Audit_Particles();
   
   void pot2field(int, Epetra_Vector *);
 
@@ -522,4 +523,3 @@ public:
 };
 
 #endif
-
