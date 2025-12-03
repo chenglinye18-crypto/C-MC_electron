@@ -1639,21 +1639,42 @@ void MeshQuantities::local_migrate() {
   for (i = c_ibegin; i <= c_iend; i ++)
     for (k = c_kbegin; k <= c_kend; k ++)
     
-    for (j = c_jbegin; j <= c_jend; j ++){
-      
-      current_par_list = &par_list[C_LINDEX_GHOST_ONE(i,j,k)];
-      
-      for (par_iter = current_par_list->begin(); par_iter != current_par_list->end(); )
-        if (par_iter->i < 0)
-          par_iter = current_par_list->erase(par_iter);
-        else
-          if ((par_iter->i != i) || (par_iter->j != j) || (par_iter->k != k)) {
+      for (j = c_jbegin; j <= c_jend; j ++){
+	
+	current_par_list = &par_list[C_LINDEX_GHOST_ONE(i,j,k)];
+	
+	for (par_iter = current_par_list->begin(); par_iter != current_par_list->end(); )
+	  if (par_iter->i < 0)
+	    par_iter = current_par_list->erase(par_iter);
+	  else
+	    if ((par_iter->i != i) || (par_iter->j != j) || (par_iter->k != k)) {
 
-            par_list[C_LINDEX_GHOST_ONE(par_iter->i, par_iter->j, par_iter->k)].push_back(*par_iter);
-            
-            par_iter = current_par_list->erase(par_iter);
+          // Debug: 粒子是否越界 (X/Y/Z)
+          bool is_j_out = (par_iter->j < c_jbegin_ghost || par_iter->j > c_jend_ghost);
+          bool is_i_out = (par_iter->i < c_ibegin || par_iter->i > c_iend);
+          bool is_k_out = (par_iter->k < c_kbegin || par_iter->k > c_kend);
+
+          if (is_j_out || is_i_out || is_k_out) {
+              cout << "[CRITICAL LEAK] Particle Escaped Domain!" << endl;
+              cout << "  ID: " << par_iter->par_id << " Type: " << par_iter->par_type << endl;
+              cout << "  From Cell: (" << i << ", " << j << ", " << k << ")" << endl;
+              cout << "  To Cell  : (" << par_iter->i << ", " << par_iter->j << ", " << par_iter->k << ")" << endl;
+              cout << "  Position : (" << par_iter->x * spr0 << ", " << par_iter->y * spr0 << ", " << par_iter->z * spr0 << ")" << endl;
+              
+              if (is_i_out) cout << "  -> X-direction LEAK (i range: " << c_ibegin << "~" << c_iend << ")" << endl;
+              if (is_j_out) cout << "  -> Y-direction LEAK (j range: " << c_jbegin_ghost << "~" << c_jend_ghost << ")" << endl;
+              if (is_k_out) cout << "  -> Z-direction LEAK (k range: " << c_kbegin << "~" << c_kend << ")" << endl;
+
+              // 防止越界 push_back 破坏内存，直接删除该粒子
+              par_iter = current_par_list->erase(par_iter);
+              continue;
           }
-          else par_iter ++;
+
+	    par_list[C_LINDEX_GHOST_ONE(par_iter->i, par_iter->j, par_iter->k)].push_back(*par_iter);
+	    
+	    par_iter = current_par_list->erase(par_iter);
+	  }
+	  else par_iter ++;
       
     }
 }
