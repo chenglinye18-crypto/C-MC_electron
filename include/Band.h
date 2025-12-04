@@ -14,6 +14,8 @@ public:
 
     bool use_analytic_band = true;
     char Typename[NumParType][9];
+
+    int flag_cellhit=0;
     //     number of scattering processes (electrons)
     int scpre;
 
@@ -474,6 +476,8 @@ public :
   std::vector<int> analytic_ptlist;
   std::vector<int> analytic_tlist;
   std::vector<double> k_ticks_code;
+  std::vector<double> k_boundaries;  // 中点边界数组
+  int last_k_col_dir = -1;           // 上一次 K 碰撞方向
 
   double valley_k0_norm = 0.0;
   double valley_centers[6][3];
@@ -502,6 +506,7 @@ public :
   void AnalyticPhononScatter(Particle* p);
   void AnalyticImpurityScatter(Particle* p, double DA, double Rho, double eps_si, double frickel, double ImpScGamma_Max);
   void GetAnalyticV_FromTable(Particle* p);
+  void GetAnalyticV_By_Index(Particle* p);
   void ExportFullBandScattering(string output_path);
   double analytic_vx = 0.0;
   double analytic_vy = 0.0;

@@ -24,36 +24,70 @@ static const double PI_SI = 3.1415926535897932;
 // 辅助工具函数
 // -----------------------------------------------------------------------------
 
-// 生成非均匀网格刻度 (单位: pi/a)
-// 范围: [-2, 2], 重点加密波谷位置 +/- 1.7 (即 0.85 * 2)
+// 修改 GenerateNonUniformTicks 函数
 std::vector<double> GenerateNonUniformTicks() {
     std::vector<double> ticks;
-    double k_start = -2.0;
-    double k_end = 2.0;
-    double current = k_start;
     
-    // 波谷中心位置 (归一化为 pi/a 单位)
-    double valley_loc1 = 1.7; 
-    double valley_loc2 = 0;
-    double fine_region_width = 0.3; // 加密区域半径
+    // 定义关键的物理对称点（能谷中心和Gamma点），这些点必须是边界！
+    std::vector<double> critical_points = {0.0, 1.7, -1.7};
     
-    double step_coarse = 0.1; // 粗网格步长
-    double step_fine = 0.01;  // 细网格步长
+    // 定义覆盖范围
+    double k_min = -2.15; // 稍微扩大一点范围
+    double k_max = 2.15;
+    
+    // 步长设定
+    double step_coarse = 0.1; 
+    double step_fine = 0.01; // 在波谷附近加密
+    
+    // 我们采用一种“以关键点为锚点”的生成策略
+    // 策略：网格点位置 = 关键点 +/- (N + 0.5) * step
+    // 这样，关键点正好位于 (N*step + 0.5*step) 和 (N*step - 0.5*step) 的正中间 -> 成为边界
+    
+    // 使用一个临时的 set 来自动排序和去重，防止重叠
+    std::vector<double> raw_ticks;
+    
+    // 1. 全局粗网格 (以 0 为锚点错开)
+    // 生成 ... -0.15, -0.05, 0.05, 0.15 ...
+    for (double k = 0.5 * step_coarse; k <= k_max; k += step_coarse) {
+        raw_ticks.push_back(k);
+        raw_ticks.push_back(-k);
+    }
 
-    while (current <= k_end + 1e-5) {
-        ticks.push_back(current);
+    // 2. 波谷附近细网格 (以 1.7 和 -1.7 为锚点错开)
+    // 范围：波谷中心 +/- 0.3
+    double fine_width = 0.3;
+    for (double k = 0.5 * step_fine; k <= fine_width; k += step_fine) {
+        // +1.7 附近
+        raw_ticks.push_back(1.7 + k);
+        raw_ticks.push_back(1.7 - k);
+        // -1.7 附近
+        raw_ticks.push_back(-1.7 + k);
+        raw_ticks.push_back(-1.7 - k);
+    }
+
+    // 3. 排序并过滤
+    std::sort(raw_ticks.begin(), raw_ticks.end());
+    
+    // 过滤逻辑：
+    // 1. 范围限制 [k_min, k_max]
+    // 2. 剔除过于接近的点（优先保留细网格点）
+    //    由于我们是分别生成的，粗细网格交界处可能会有很近的点，需要清理
+    
+    if (raw_ticks.empty()) return ticks;
+
+    ticks.push_back(raw_ticks[0]);
+    for (size_t i = 1; i < raw_ticks.size(); ++i) {
+        double curr = raw_ticks[i];
+        if (curr < k_min || curr > k_max) continue;
         
-        double abs_k = std::fabs(current);
-        // 判断是否在波谷附近
-        bool near_valley1 = std::fabs(abs_k - valley_loc1) < fine_region_width;
-        bool near_valley2 = std::fabs(abs_k - valley_loc2) < fine_region_width;
-        
-        if (near_valley1 || near_valley2) {
-            current += step_fine;
-        } else {
-            current += step_coarse;
+        // 如果当前点和上一个点太近，说明粗细网格撞车了
+        // 我们保留细网格点（因为它更精确），通常后生成的（或者符合特定步长的）保留
+        // 这里简单处理：如果距离小于最小步长的 0.4 倍，就跳过
+        if (curr - ticks.back() > 0.4 * step_fine) {
+            ticks.push_back(curr);
         }
     }
+
     return ticks;
 }
 
@@ -608,6 +642,16 @@ void Band::InitAxisLookupTable() {
         k_ticks_code[i] = ticks[i] * conversion;
     }
 
+    // 计算 K 空间边界（Voronoi 中点）
+    k_boundaries.clear();
+    if (num_ticks_axis > 1) {
+        k_boundaries.resize(num_ticks_axis - 1);
+        for (int i = 0; i < num_ticks_axis - 1; ++i) {
+            k_boundaries[i] = 0.5 * (k_ticks_code[i] + k_ticks_code[i + 1]);
+        }
+    }
+    cout << "  [Info] K-Space Boundaries computed. Count: " << k_boundaries.size() << endl;
+
     k_map_min = -2.1;
     k_map_max = 2.1;
     double resolution = 0.001;
@@ -651,32 +695,58 @@ int Band::GetAxisIndex_O1(double k_val) {
 }
 
 double Band::GetAnalyticGridTime(Particle* p, double Fx, double Fy, double Fz) {
-    static const double a_lattice = 5.43e-10;
-    double to_pi = 1.0 / ((PI / a_lattice) * spr0);
-
     double min_dt = 1.0e99;
+    last_k_col_dir = -1;
 
-    auto update_dt = [&](double k_val, double F, double &min_val) {
+    // 使用粒子已有索引，避免重复查找
+    auto update_dt = [&](double k_val, int idx, double F, int axis_id) {
         if (std::fabs(F) < 1.0e-20) return;
-        int idx = GetAxisIndex_O1((k_val + (F > 0 ? 1e-9 : -1e-9)) * to_pi);
+
         double wall;
+        int dir_offset = (F > 0) ? 0 : 1; // 0:+, 1:-
+
         if (F > 0) {
             if (idx >= num_ticks_axis - 1) wall = 1.0e99;
-            else wall = k_ticks_code[idx + 1];
+            else wall = k_boundaries[idx];
         } else {
             if (idx <= 0) wall = -1.0e99;
-            else wall = k_ticks_code[idx];
+            else wall = k_boundaries[idx - 1];
         }
+
         double dt = (wall - k_val) / F;
-        if (dt > 0 && dt < min_val) min_val = dt;
+        if (dt > 1.0e-14 && dt < min_dt) {
+            min_dt = dt;
+            last_k_col_dir = axis_id * 2 + dir_offset;
+        }
     };
 
-    update_dt(p->kx, Fx, min_dt);
-    update_dt(p->ky, Fy, min_dt);
-    update_dt(p->kz, Fz, min_dt);
+    update_dt(p->kx, p->kx_idx, Fx, 0); // X
+    update_dt(p->ky, p->ky_idx, Fy, 1); // Y
+    update_dt(p->kz, p->kz_idx, Fz, 2); // Z
 
     if (min_dt < 1.0e-8) min_dt = 1.0e-8;
     return min_dt;
+}
+
+void Band::GetAnalyticV_By_Index(Particle* p) {
+    if (p->kx_idx < 0) p->kx_idx = 0;
+    if (p->kx_idx >= num_ticks_axis) p->kx_idx = num_ticks_axis - 1;
+    if (p->ky_idx < 0) p->ky_idx = 0;
+    if (p->ky_idx >= num_ticks_axis) p->ky_idx = num_ticks_axis - 1;
+    if (p->kz_idx < 0) p->kz_idx = 0;
+    if (p->kz_idx >= num_ticks_axis) p->kz_idx = num_ticks_axis - 1;
+
+    int N = num_ticks_axis;
+    int flat_idx = p->kx_idx * (N * N) + p->ky_idx * N + p->kz_idx;
+    if (flat_idx >= 0 && flat_idx < static_cast<int>(analytic_k_grid.size())) {
+        const AnalyticKPoint& pt = analytic_k_grid[flat_idx];
+        analytic_vx = pt.vx;
+        analytic_vy = pt.vy;
+        analytic_vz = pt.vz;
+        p->energy = pt.energy;
+    } else {
+        analytic_vx = analytic_vy = analytic_vz = 0.0;
+    }
 }
 
 double Band::GetAnalyticImpurityRate(double E, double DA, double Rho, double eps_si, double frickel) {
@@ -789,6 +859,12 @@ void Band::AnalyticImpurityScatter(Particle* p, double DA, double Rho, double ep
         p->kx = kt1_new;
         p->ky = kt2_new;
     }
+
+    // 更新索引并查表速度
+    double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+    p->kx_idx = GetAxisIndex_O1(p->kx * to_pi);
+    p->ky_idx = GetAxisIndex_O1(p->ky * to_pi);
+    p->kz_idx = GetAxisIndex_O1(p->kz * to_pi);
 
     GetAnalyticV_FromTable(p);
 }
@@ -925,32 +1001,37 @@ void Band::AnalyticPhononScatter(Particle* p) {
     p->kx = nkx;
     p->ky = nky;
     p->kz = nkz;
+
+    // 更新索引并查表
+    static const double a_lattice = 5.43e-10;
+    double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+    p->kx_idx = GetAxisIndex_O1(p->kx * to_pi);
+    p->ky_idx = GetAxisIndex_O1(p->ky * to_pi);
+    p->kz_idx = GetAxisIndex_O1(p->kz * to_pi);
+
     GetAnalyticV_FromTable(p);
 }
+// 通过索引直接查表，避免浮点抖动
 void Band::GetAnalyticV_FromTable(Particle* p) {
-    static const double a_lattice = 5.43e-10;
-    static const double conversion_factor = 1.0 / ((PI / a_lattice) * spr0);
-
-    double kx_pi = p->kx * conversion_factor;
-    double ky_pi = p->ky * conversion_factor;
-    double kz_pi = p->kz * conversion_factor;
-
-    int ix = GetAxisIndex_O1(kx_pi);
-    int iy = GetAxisIndex_O1(ky_pi);
-    int iz = GetAxisIndex_O1(kz_pi);
-
     int N = num_ticks_axis;
-    int flat_idx = ix * (N * N) + iy * N + iz;
-    if (flat_idx < 0 || flat_idx >= static_cast<int>(analytic_k_grid.size())) {
-        analytic_vx = analytic_vy = analytic_vz = 0.0;
-        return;
-    }
 
-    const AnalyticKPoint& pt = analytic_k_grid[flat_idx];
-    analytic_vx = pt.vx;
-    analytic_vy = pt.vy;
-    analytic_vz = pt.vz;
-    p->energy = pt.energy; // 保持 E-k 一致
+    // 越界钳位
+    if (p->kx_idx < 0) p->kx_idx = 0; else if (p->kx_idx >= N) p->kx_idx = N - 1;
+    if (p->ky_idx < 0) p->ky_idx = 0; else if (p->ky_idx >= N) p->ky_idx = N - 1;
+    if (p->kz_idx < 0) p->kz_idx = 0; else if (p->kz_idx >= N) p->kz_idx = N - 1;
+
+    int flat_idx = p->kx_idx * (N * N) + p->ky_idx * N + p->kz_idx;
+
+    if (flat_idx >= 0 && flat_idx < static_cast<int>(analytic_k_grid.size())) {
+        const AnalyticKPoint& pt = analytic_k_grid[flat_idx];
+        analytic_vx = pt.vx;
+        analytic_vy = pt.vy;
+        analytic_vz = pt.vz;
+        p->energy = pt.energy;
+    } else {
+        analytic_vx = analytic_vy = analytic_vz = 0.0;
+        cout << "Error: Index out of bounds in GetAnalyticV_FromTable: " << flat_idx << endl;
+    }
 }
 
 void Band::BuildAnalyticInjectionTable() {
@@ -1117,9 +1198,19 @@ void Band::SelectAnalyticKState(Particle* p, double E_target) {
     p->kx = pt.kx;
     p->ky = pt.ky;
     p->kz = pt.kz;
+
+    // 直接反推索引（flat_idx -> kx/ky/kz_idx）
+    int N = num_ticks_axis;
+    p->kz_idx = selected_grid_idx % N;
+    int temp = selected_grid_idx / N;
+    p->ky_idx = temp % N;
+    p->kx_idx = temp / N;
+
+    // 同步速度与能量
     analytic_vx = pt.vx;
     analytic_vy = pt.vy;
     analytic_vz = pt.vz;
+    p->energy = pt.energy;
 }
 
 /*

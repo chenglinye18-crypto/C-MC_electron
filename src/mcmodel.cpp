@@ -1941,14 +1941,13 @@ void MeshQuantities::particle_fly() {
 
   bool fly_too_far = false;
   
-  int flag, old_flag;
+  int flag = 0, old_flag = 0;
 
   InPar(par_iter);
   
   Rho = (*c_par_charge)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
   DA = (*c_da)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
   
-  // 获取电场
   if (par_type == 0) {
     Ex  = ChargeSign[par_type] * (*c_field_x)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
     Ey  = ChargeSign[par_type] * (*c_field_y)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)];
@@ -1961,7 +1960,6 @@ void MeshQuantities::particle_fly() {
 
   iband = band.ibt[itet];
 
-  // 初始速度
   if (band.use_analytic_band) {
       band.GetAnalyticV_FromTable(&(*par_iter));
       vx = band.analytic_vx;
@@ -1974,34 +1972,55 @@ void MeshQuantities::particle_fly() {
   int loop = 0;
   bool old_flag_getTetTime;
   Particle old_par, new_par;
+  int old_cellflag=0;
+
+  // [DEBUG] 黑匣子：记录上一轮的完整状态
+  struct StateSnapshot {
+      int loop_idx;
+      int trigger_flag; // 触发本轮的原因 (1=HitTet, 2=HitCell...)
+      double x, y, z;
+      double kx, ky, kz;
+      double vx, vy, vz;
+      int i, j, k;
+      double calc_TetTf; // 上一轮计算出的 TetTf
+      double calc_CellTf; // 上一轮计算出的 CellTf
+  } prev_step, curr_step;
+
+  // 初始化
+  prev_step.loop_idx = 0; prev_step.trigger_flag = -1;
+  prev_step.x = x; prev_step.y = y; prev_step.z = z;
+  prev_step.calc_TetTf = -1; prev_step.calc_CellTf = -1;
+
+  if(CellTime()<MY_ZERO){
+ //     cout<<"debug point"<<endl;
+  }
 
   while (left_time > 0) {
-    // ----------------------------------------------------
-    // 数据同步与速度更新
-    // ----------------------------------------------------
     
-        // 用当前 k/E 查表更新速度
-            // 数据同步与速度更新
+    // ----------------------------------------------------
+    // 解析能带模式下的速度同步
     // ----------------------------------------------------
     if (band.use_analytic_band) {
-        // 同步 MeshQuantities 成员到粒子对象，确保查表使用最新 k/E
-        par_iter->kx = kx;
-        par_iter->ky = ky;
-        par_iter->kz = kz;
+        par_iter->kx = kx; par_iter->ky = ky; par_iter->kz = kz;
         par_iter->energy = energy;
         par_iter->x = x; par_iter->y = y; par_iter->z = z;
-        band.GetAnalyticV_FromTable(&(*par_iter));
-        vx = band.analytic_vx;
-        vy = band.analytic_vy;
-        vz = band.analytic_vz;
-        energy = par_iter->energy;
+        //band.GetAnalyticV_FromTable(&(*par_iter));
+        //vx = band.analytic_vx; vy = band.analytic_vy; vz = band.analytic_vz;
+        //energy = par_iter->energy;
     } else {
-    GetV();
+        GetV();
     }
 
     loop ++;
     
-    // --- 1. 飞行时间 ---
+    // 记录本轮开始时的状态
+    curr_step.loop_idx = loop;
+    curr_step.x = x; curr_step.y = y; curr_step.z = z;
+    curr_step.kx = kx; curr_step.ky = ky; curr_step.kz = kz;
+    curr_step.vx = vx; curr_step.vy = vy; curr_step.vz = vz;
+    curr_step.i = icell; curr_step.j = jcell; curr_step.k = kcell;
+    
+    // --- 1. 计算时间步长 ---
     if(Flag_GetTetTime) {
         if (band.use_analytic_band) {
             TetTf = band.GetAnalyticGridTime(&(*par_iter), Ex, Ey, Ez);
@@ -2011,12 +2030,6 @@ void MeshQuantities::particle_fly() {
         Flag_GetTetTime = false;
     }
     
-    //------DEBUG------当xyz为0时打印位置方便我打断点
-    if (x == 0.0 && y == 0.0 && z == 0.0) {
-        cout << "Debug: Particle at origin!" << endl;
-    }
-    //------DEBUG------ 
-
     if(Flag_GetCellTime) {
         CellTf = CellTime();   
         Flag_GetCellTime = false;
@@ -2028,101 +2041,93 @@ void MeshQuantities::particle_fly() {
     }
     PhScTf = phrnl / band.gamtet[itet];
     
-    // 杂质散射时间
     if(band.use_analytic_band || iband == band.bandof[PELEC]) {
         if(Flag_GetImpScTime) {
               imprnl = -log(Random());
               Flag_GetImpScTime = false;
         }
-        
-        if (band.use_analytic_band) {
+        if (band.use_analytic_band) 
              ImpScGamma = band.GetAnalyticImpurityRate(par_iter->energy, DA, Rho, eps[SILICON], frickel);
-        } else {
-             ImpScGamma = GetImpScGamma();
-        }
-        
-        if (ImpScGamma > 1.0e-20)
-            ImpScTf = imprnl / ImpScGamma;
         else 
-            ImpScTf = 1.0e99;
+             ImpScGamma = GetImpScGamma();
+        
+        if (ImpScGamma > 1.0e-20) ImpScTf = imprnl / ImpScGamma; else ImpScTf = 1.0e99;
     }
     else {
         ImpScTf = 2 * dt;
         ImpScGamma = 1.0 / scrt0;
     }
 
-    // 表面散射时间
     if((Flag_SurfaceScatter) && ((*c_InSurfRegion)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)])) {
         if(Flag_GetSurfScTime) {
             ssnl = -log(Random());
             Flag_GetSurfScTime = false;
         }
         GetSurfScRate();
-        
-        if(SurfScGamma > 0 && ssnl > 0)
-          SurfScTf = ssnl / SurfScGamma;
-        else
-          SurfScTf = 2 * dt;
+        if(SurfScGamma > 0 && ssnl > 0) SurfScTf = ssnl / SurfScGamma; else SurfScTf = 2 * dt;
     } else {
         SurfScTf = 2 * dt;
     }
     
     old_flag = flag;
-
-    // 最小时间
     Tf = Min(TetTf, CellTf, PhScTf, ImpScTf, SurfScTf, left_time, flag);
 
-    //------DEBUG------当CellTf最小时打印位置方便我打断点
-    //if (flag == 2) {
-    //    cout << "Debug: CellTf is minimum at loop " << loop << "!" << endl;
-    //}
+    // 记录计算出的时间，用于下一次崩溃时的回溯
+    curr_step.calc_TetTf = TetTf;
+    curr_step.calc_CellTf = CellTf;
+    curr_step.trigger_flag = flag;
 
-    /*
-    if (par_iter->par_id == 0 && loop <= 20) {
-        cout << "--- Debug FullBand Flight (Loop " << loop << ") ---" << endl;
-        cout << "Particle ID : " << par_iter->par_id << endl;
-        cout << "TetTf       : " << TetTf << endl;
-        cout << "CellTf      : " << CellTf << endl;
-        cout << "PhScTf      : " << PhScTf << endl;
-        cout << "ImpScTf     : " << ImpScTf << endl;
-        cout << "SurfScTf    : " << SurfScTf << endl;
-        cout << "LeftTime    : " << left_time << endl;
-        cout << "Selected Tf : " << Tf << " (Flag: " << flag << ")" << endl;
-        cout << "Current k   : " << kx << ", " << ky << ", " << kz << endl;
-        cout << "Current v   : " << vx << ", " << vy << ", " << vz << endl;
-        cout << "-------------------------------------------------" << endl;
-    }
-        */
-    
-    // 浮点容错：微小负值归零
-    if (Tf < 0.0 && Tf > -1.0e-12) {
-        Tf = 0.0;
-    }
-
-    // 异常检查
-    if(Tf < MY_ZERO) {
-        cout << "-----------------------------------------------------" << endl;
-        cout << "Error: Tf < 0 detected!" << endl;
-        cout << "Loop: " << loop << "  Old_Flag: " << old_flag << "  New_Flag: " << flag << endl;
-        cout << "Particle ID: " << par_iter->par_id << "  Type: " << par_iter->par_type << endl;
-        cout << "-----------------------------------------------------" << endl;
-        cout << "TetTf (Grid) : " << TetTf << endl;
-        cout << "CellTf       : " << CellTf << endl;
-        cout << "PhScTf       : " << PhScTf << endl;
-        cout << "ImpScTf      : " << ImpScTf << endl;
-        cout << "SurfScTf     : " << SurfScTf << endl;
-        cout << "LeftTime     : " << left_time << endl;
-        cout << "-----------------------------------------------------" << endl;
-        cout << "Current State:" << endl;
-        cout << "Energy       : " << energy << " (Norm)" << endl;
-        cout << "K Vector     : " << kx * spk0<< ", " << ky * spk0<< ", " << kz * spk0<< endl;
-        cout << "Velocity     : " << vx * velo0<< ", " << vy * velo0<< ", " << vz * velo0<< endl;
-        cout << "Position     : " << x * spr0 << ", " << y * spr0 << ", " << z * spr0 << endl;
-        cout << "ImpScGamma   : " << ImpScGamma << endl;
-        cout << "gamtet[itet] : " << band.gamtet[itet] << endl;
-        cout << "-----------------------------------------------------" << endl;
+    // [DEBUG] 崩溃现场详细尸检
+    if(Tf < MY_ZERO && flag != 2){
+        cout << "\n================== CRITICAL DIAGNOSIS ==================" << endl;
+        cout << "Error: Tf < 0 (Deadlock) Detected at Loop " << loop << endl;
+        cout << "old flag" << old_flag << ", new flag " << flag << endl;
+        cout << "本轮的速度: (" << vx * velo0 << ", " << vy * velo0 << ", " << vz * velo0 << ") m/s" << endl;
+        cout << "本轮的位置: (" << x * spr0 << ", " << y * spr0 << ", " << z * spr0 << ") m" << endl;
+        cout << "本轮的 K-矢量: (" << kx * spk0 << ", " << ky * spk0 << ", " << kz * spk0 << ") " << endl;
+        cout << "上轮的速度: (" << prev_step.vx * velo0 << ", " << prev_step.vy * velo0 << ", " << prev_step.vz * velo0 << ") m/s" << endl;
+        cout << "上轮的位置: (" << prev_step.x * spr0 << ", " << prev_step.y * spr0 << ", " << prev_step.z * spr0 << ") m" << endl;
+        cout << "上轮的 K-矢量: (" << prev_step.kx * spk0 << ", " << prev_step.ky * spk0 << ", " << prev_step.kz * spk0 << ") " << endl;
         Flag_Catch = true;
         break;
+        
+        //cout << "\n[1. REAL SPACE CHECK]" << endl;
+        //cout << "Pos Y       : " << y * spr0 << " m" << endl;
+        //cout << "Cell Bound L: " << ly[jcell] * spr0 << " m (Index " << jcell << ")" << endl;
+        //cout << "Cell Bound R: " << ly[jcell+1] * spr0 << " m" << endl;
+        //double dL = y - ly[jcell];
+        //double dR = ly[jcell+1] - y;
+        //cout << "Dist Left   : " << dL * spr0 << " m" << (fabs(dL) < 1e-12 ? " [ON BOUNDARY]" : "") << endl;
+        //cout << "Dist Right  : " << dR * spr0 << " m" << (fabs(dR) < 1e-12 ? " [ON BOUNDARY]" : "") << endl;
+        //cout << "Velocity Y  : " << vy * velo0 << " m/s" << endl;
+        //
+        //cout << "\n[2. K-SPACE CHECK]" << endl;
+        //cout << "K Vector    : (" << kx*spk0 << ", " << ky*spk0 << ", " << kz*spk0 << ")" << endl;
+        //cout << "TetTf (Time to K-Boundary) : " << TetTf << endl;
+        //cout << "CellTf (Time to R-Boundary): " << CellTf << endl;
+        //
+        //cout << "\n[3. EVOLUTION HISTORY]" << endl;
+        //cout << "--- LOOP " << prev_step.loop_idx << " (Previous) ---" << endl;
+        //cout << "  Triggered Flag: " << prev_step.trigger_flag << " (1=HitTet, 2=HitCell)" << endl;
+        //cout << "  Vy            : " << prev_step.vy * velo0 << endl;
+        //cout << "  Ky            : " << prev_step.ky * spk0 << endl;
+        //cout << "  Y Position    : " << prev_step.y * spr0 << endl;
+        //
+        //cout << "--- LOOP " << curr_step.loop_idx << " (Current/Crashed) ---" << endl;
+        //cout << "  Target Flag   : " << flag << endl;
+        //cout << "  Vy            : " << vy * velo0 << " (Note Sign Change?)" << endl;
+        //cout << "  Ky            : " << ky * spk0 << endl;
+        //
+        //double dKy = curr_step.ky - prev_step.ky;
+        //cout << "\n[4. LOGIC TEST]" << endl;
+        //cout << "Delta Ky      : " << dKy * spk0 << endl;
+        //cout << "Was TetTf small enough? " << (TetTf < CellTf ? "Yes, K-bound closer" : "No, Real-bound closer") << endl;
+        //if (flag == 1) cout << "System WANTED to trigger HitTet, but Tf was 0!" << endl;
+        //if (flag == 2) cout << "System WANTED to trigger HitCell (Spatial), meaning K-space didn't hit boundary yet." << endl;
+//
+        //cout << "========================================================" << endl;
+        //Flag_Catch = true;
+        //break;
     }
       
     // --- 2. 漂移更新 ---
@@ -2152,12 +2157,27 @@ void MeshQuantities::particle_fly() {
       break;
     }
     
-    // --- 3. 事件 ---
+    // 更新历史记录
+    prev_step = curr_step;
+    old_cellflag = band.flag_cellhit;
+
+    // --- 3. 事件处理 ---
     switch (flag) {
-    case 1: { 
+    case 1: { // HitTet (K-space boundary)
       if (band.use_analytic_band) {
-          Flag_GetTetTime = true;
-          Flag_GetCellTime = true;
+          HitAnalyticKGrid();
+          if (!Flag_Catch) {
+              // 同步到当前粒子状态
+              kx = par_iter->kx;
+              ky = par_iter->ky;
+              kz = par_iter->kz;
+              energy = par_iter->energy;
+              vx = band.analytic_vx;
+              vy = band.analytic_vy;
+              vz = band.analytic_vz;
+              Flag_GetTetTime = true;
+              Flag_GetCellTime = true;
+          }
       } else {
           HitTet();
           Flag_GetTetTime = true;
@@ -2165,7 +2185,7 @@ void MeshQuantities::particle_fly() {
       }
       break;
     }
-    case 2: {
+    case 2: { // HitCell (Real-space boundary)
       if (HitCell()) {
         Flag_GetTetTime = true;
         Flag_GetCellTime = true;
@@ -2175,11 +2195,12 @@ void MeshQuantities::particle_fly() {
       }
       break;
     }
-    case 3: {
+    case 3: { // Phonon Scatter
       if (par_type == PELEC) { 
           if (band.use_analytic_band) {
               band.AnalyticPhononScatter(&(*par_iter));
               Flag_SelfScatter = band.analytic_self_scatter;
+              // 散射后立即同步
               kx = par_iter->kx; ky = par_iter->ky; kz = par_iter->kz;
               energy = par_iter->energy;
               band.GetAnalyticV_FromTable(&(*par_iter));
@@ -2199,9 +2220,8 @@ void MeshQuantities::particle_fly() {
       Flag_GetPhScTime = true;
       break;
     }
-    case 4 : {
+    case 4 : { // Impurity Scatter
       OutPar(&old_par);
-      
       if(par_type == PELEC) {
           if (band.use_analytic_band) {
               band.AnalyticImpurityScatter(&(*par_iter), DA, Rho, eps[SILICON], frickel, ImpScGamma);
@@ -2214,7 +2234,6 @@ void MeshQuantities::particle_fly() {
               ElectronImpurityScatter();
           }
       }
-
       OutPar(&new_par);
       
       old_flag_getTetTime = Flag_SelfScatter;
@@ -2226,9 +2245,8 @@ void MeshQuantities::particle_fly() {
       Flag_GetImpScTime = true;
       break;
     }
-    case 5 : {
+    case 5 : { // Surface Scatter
       ParticleSurfaceScatter();
-      
       if(!Flag_SelfScatter) {
           Flag_GetTetTime = true;
           Flag_GetCellTime = true;
@@ -2257,6 +2275,42 @@ void MeshQuantities::particle_fly() {
     err_message(TOO_MANY_LOOPS, "particle fly");
     dump_par_info();
   }
+}
+
+// 解析能带：处理 K 空间网格碰撞
+void MeshQuantities::HitAnalyticKGrid() {
+    int dir = band.last_k_col_dir;
+
+    switch (dir) {
+        case 0: par_iter->kx_idx++; break; // +kx
+        case 1: par_iter->kx_idx--; break; // -kx
+        case 2: par_iter->ky_idx++; break; // +ky
+        case 3: par_iter->ky_idx--; break; // -ky
+        case 4: par_iter->kz_idx++; break; // +kz
+        case 5: par_iter->kz_idx--; break; // -kz
+        default:
+            if (mpi_rank == 0) {
+                cout << "Error: HitAnalyticKGrid invalid dir " << dir << endl;
+            }
+            return;
+    }
+
+    int N = band.num_ticks_axis;
+    bool out_of_bounds = (par_iter->kx_idx < 0 || par_iter->kx_idx >= N ||
+                          par_iter->ky_idx < 0 || par_iter->ky_idx >= N ||
+                          par_iter->kz_idx < 0 || par_iter->kz_idx >= N);
+    if (out_of_bounds) {
+        Flag_Catch = true;
+        return;
+    }
+
+    // 将 k 定位到新的格点
+    par_iter->kx = band.k_ticks_code[par_iter->kx_idx];
+    par_iter->ky = band.k_ticks_code[par_iter->ky_idx];
+    par_iter->kz = band.k_ticks_code[par_iter->kz_idx];
+
+    // 查表更新速度和能量
+    band.GetAnalyticV_By_Index(&(*par_iter));
 }
 
 // 审计粒子：统计有效区与 Ghost/无效区的数量

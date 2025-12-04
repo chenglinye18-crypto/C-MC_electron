@@ -1,5 +1,6 @@
 
 #include "mcmodel.h"
+#include "Band.h"
 
 double MeshQuantities::CellTime()
 {
@@ -89,9 +90,6 @@ double MeshQuantities::CellTime()
 	CellTime=0;
       }
 
-    if(CellTime < MY_ZERO)
-  cout<< tx << ' ' << ty << ' ' << tz << ' ' << vx * velo0<< ' ' << vy * velo0<< ' ' << vz * velo0<< ' ' << x * spr0 << ' ' << y  * spr0 << ' ' << z  * spr0 << ' '<< endl;
-
     return CellTime;
 }
 
@@ -114,16 +112,21 @@ int MeshQuantities::HitCell()
     
     if (imot == PASS) {
       Pass();
+      band.flag_cellhit=1;
     }
     
     // ..reflecte at border
-    else if(imot==REFLECT)
+    else if(imot==REFLECT){
         Reflect();
+        band.flag_cellhit=2;
+    }
     // ..reflecte or scatter at border
     else if(imot==SCATTOX)
       {
+        band.flag_cellhit=3;
     	if(Flag_SurfaceScatter)
           Reflect();
+
     	else
           {
             //GETINTER();
@@ -216,22 +219,34 @@ int MeshQuantities::HitCell()
 
 void MeshQuantities::Reflect()
 {
-    // 解析能带：直接翻转对应分量，保持 k 与 v 同步，并轻推离边界
+    // 解析能带：翻转 k 分量，更新索引并查表速度
     if (band.use_analytic_band) {
-        //double eps_nudge = 1.0e-10;
         if (idir == UP || idir == DOWN) {
             kx = -kx;
             vx = -vx;
-            //if (idir == UP) x += eps_nudge; else x -= eps_nudge;
         } else if (idir == RIGHT || idir == LEFT) {
             ky = -ky;
             vy = -vy;
-            //if (idir == LEFT) y += eps_nudge; else y -= eps_nudge;
         } else if (idir == FRONT || idir == BACK) {
             kz = -kz;
             vz = -vz;
-            //if (idir == FRONT) z += eps_nudge; else z -= eps_nudge;
         }
+
+        // 同步到粒子并刷新索引
+        par_iter->kx = kx;
+        par_iter->ky = ky;
+        par_iter->kz = kz;
+
+        static const double a_lattice = 5.43e-10;
+        double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+        par_iter->kx_idx = band.GetAxisIndex_O1(kx * to_pi);
+        par_iter->ky_idx = band.GetAxisIndex_O1(ky * to_pi);
+        par_iter->kz_idx = band.GetAxisIndex_O1(kz * to_pi);
+
+       //band.GetAnalyticV_By_Index(&(*par_iter));
+       //vx = band.analytic_vx;
+       //vy = band.analytic_vy;
+       //vz = band.analytic_vz;
         return;
     }
 
@@ -269,7 +284,7 @@ void MeshQuantities::Diffuse()
         Particle tmp_p{};
         tmp_p.energy = energy;
         band.SelectAnalyticKState(&tmp_p, energy);
-        band.GetAnalyticV_FromTable(&tmp_p);
+        band.GetAnalyticV_By_Index(&tmp_p);
 
         double vx_new = band.analytic_vx;
         double vy_new =  band.analytic_vy;
@@ -286,10 +301,28 @@ void MeshQuantities::Diffuse()
         if (need_flip) {
             tmp_p.kx = -tmp_p.kx; tmp_p.ky = -tmp_p.ky; tmp_p.kz = -tmp_p.kz;
             vx_new = -vx_new; vy_new = -vy_new; vz_new = -vz_new;
+
+            // 翻转后重算索引并查表
+            static const double a_lattice = 5.43e-10;
+            double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+            tmp_p.kx_idx = band.GetAxisIndex_O1(tmp_p.kx * to_pi);
+            tmp_p.ky_idx = band.GetAxisIndex_O1(tmp_p.ky * to_pi);
+            tmp_p.kz_idx = band.GetAxisIndex_O1(tmp_p.kz * to_pi);
+            band.GetAnalyticV_By_Index(&tmp_p);
+            vx_new = band.analytic_vx;
+            vy_new = band.analytic_vy;
+            vz_new = band.analytic_vz;
         }
 
+        // 同步状态
         kx = tmp_p.kx; ky = tmp_p.ky; kz = tmp_p.kz;
         vx = vx_new; vy = vy_new; vz = vz_new;
+        par_iter->kx = kx; par_iter->ky = ky; par_iter->kz = kz;
+        par_iter->kx_idx = tmp_p.kx_idx;
+        par_iter->ky_idx = tmp_p.ky_idx;
+        par_iter->kz_idx = tmp_p.kz_idx;
+        par_iter->energy = tmp_p.energy;
+
         //// 轻推粒子离开边界，避免 CellTf=0 死锁
         //double eps_nudge = 1.0e-9;
         //if (idir == UP) x += eps_nudge;

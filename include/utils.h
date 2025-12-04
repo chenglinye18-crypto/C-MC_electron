@@ -134,6 +134,10 @@ public:
   double charge, energy;
   double left_time;
   int i, j,k;
+
+  // K-space indices (analytic band lookup)
+  int kx_idx, ky_idx, kz_idx;
+
   int itet, isym, par_type;
   int flag;
   int seed;

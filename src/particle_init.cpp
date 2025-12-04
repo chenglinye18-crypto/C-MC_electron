@@ -153,7 +153,7 @@ void MeshQuantities::init_particle_data() {
     debug_out.open("debug_init_particles_fullband.txt");
   }
   if (debug_out.is_open()) {
-    debug_out << "ID Type Cell(i,j,k) x(m) y(m) z(m) kx ky kz vx(m/s) vy(m/s) vz(m/s) Energy(eV) par_charge" << std::endl;
+    debug_out << "ID Type Cell(i,j,k) x(m) y(m) z(m) kx ky kz vx(m/s) vy(m/s) vz(m/s) Energy(eV) par_charge kx_idx ky_idx kz_idx" << std::endl;
   }
 
   compute_par_num();  // 计算每个cell中的电子和空穴数量
@@ -176,6 +176,10 @@ void MeshQuantities::init_particle_data() {
   c_init_hole_charge->ExtractView(&hole_charge);
 
   c_attached_contact->ExtractView(&cell_contact);
+
+  // 解析模式下用于计算 k 轴索引的转换系数
+  static const double a_lattice = 5.43e-10;
+  double to_pi = 1.0 / ((PI / a_lattice) * spr0);
 
   /* for each cells and each particle type */
   for(iptype = 0; iptype < 2; iptype ++) {
@@ -251,6 +255,15 @@ void MeshQuantities::init_particle_data() {
 
               select_kstate(&newpar, 0);
 
+              // 计算并保存 K 轴索引（仅解析模式有意义）
+              if (band.use_analytic_band) {
+                  newpar.kx_idx = band.GetAxisIndex_O1(newpar.kx * to_pi);
+                  newpar.ky_idx = band.GetAxisIndex_O1(newpar.ky * to_pi);
+                  newpar.kz_idx = band.GetAxisIndex_O1(newpar.kz * to_pi);
+              } else {
+                  newpar.kx_idx = newpar.ky_idx = newpar.kz_idx = 0;
+              }
+
               par_list[C_LINDEX_GHOST_ONE(i,j,k)].push_back(newpar);
 
               // 调试输出（两种模式共用）
@@ -280,7 +293,8 @@ void MeshQuantities::init_particle_data() {
                             << newpar.kx << " " << newpar.ky << " " << newpar.kz << " "
                             << vx_out << " " << vy_out << " " << vz_out << " "
                             << newpar.energy * eV0 << " "
-                            << par_charge
+                            << par_charge << " "
+                            << newpar.kx_idx << " " << newpar.ky_idx << " " << newpar.kz_idx
                             << std::endl;
               }
             }

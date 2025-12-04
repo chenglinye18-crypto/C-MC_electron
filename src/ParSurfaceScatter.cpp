@@ -51,8 +51,8 @@ void MeshQuantities::ParticleSurfaceScatter()
 	        idir = SurfaceDir[(*c_nearestSurf)[C_LINDEX_GHOST_ONE(icell, jcell, kcell)]];
 		Diffuse();
 	}
-      	else
-      	{
+     	else
+     	{
           if(par_type==PELEC) {
               if (band.use_analytic_band) {
                   Particle tmp_p{};
@@ -63,6 +63,13 @@ void MeshQuantities::ParticleSurfaceScatter()
                   vx = band.analytic_vx; vy = band.analytic_vy; vz = band.analytic_vz;
                   energy = tmp_p.energy;
                   Flag_SelfScatter = band.analytic_self_scatter;
+
+                  // 同步索引和状态回 par_iter
+                  par_iter->kx = kx; par_iter->ky = ky; par_iter->kz = kz;
+                  par_iter->energy = energy;
+                  par_iter->kx_idx = tmp_p.kx_idx;
+                  par_iter->ky_idx = tmp_p.ky_idx;
+                  par_iter->kz_idx = tmp_p.kz_idx;
               } else {
                   ElectronSurfacePhononScatter();
               }

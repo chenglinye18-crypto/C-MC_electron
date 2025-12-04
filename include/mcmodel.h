@@ -302,6 +302,7 @@ class MeshQuantities {
   void GetSurfRoughnessPhononScRate();
 
   void HitTet();
+  void HitAnalyticKGrid();
 
   int HitCell();
 
