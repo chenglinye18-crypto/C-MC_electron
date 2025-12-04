@@ -220,22 +220,42 @@ int MeshQuantities::HitCell()
 void MeshQuantities::Reflect()
 {
     // 解析能带：翻转 k 分量，更新索引并查表速度
-    if (band.use_analytic_band) {
-        if (idir == UP || idir == DOWN) {
+if (band.use_analytic_band) {
+        // 1. 处理 X 方向反射
+        if (idir == UP) { // 撞击左边界 (Lx[i])
+            kx = -kx;
+            vx = -vx;     // 暂时手动翻转
+            x = lx[icell]; // [Fix] 强制吸附到边界
+        } 
+        else if (idir == DOWN) { // 撞击右边界 (Lx[i+1])
             kx = -kx;
             vx = -vx;
-        } else if (idir == RIGHT || idir == LEFT) {
+            x = lx[icell + 1]; // [Fix] 强制吸附到边界
+        } 
+        
+        // 2. 处理 Y 方向反射
+        else if (idir == LEFT) { // 撞击左边界 (Ly[j])
             ky = -ky;
             vy = -vy;
-        } else if (idir == FRONT || idir == BACK) {
+            y = ly[jcell]; // [Fix] 强制吸附到边界
+        } 
+        else if (idir == RIGHT) { // 撞击右边界 (Ly[j+1])
+            ky = -ky;
+            vy = -vy;
+            y = ly[jcell + 1]; // [Fix] 强制吸附到边界
+        } 
+        
+        // 3. 处理 Z 方向反射
+        else if (idir == FRONT) { // 撞击前边界 (Lz[k])
             kz = -kz;
             vz = -vz;
+            z = lz[kcell]; // [Fix] 强制吸附到边界
+        } 
+        else if (idir == BACK) { // 撞击后边界 (Lz[k+1])
+            kz = -kz;
+            vz = -vz;
+            z = lz[kcell + 1]; // [Fix] 强制吸附到边界
         }
-
-        // 同步到粒子并刷新索引
-        par_iter->kx = kx;
-        par_iter->ky = ky;
-        par_iter->kz = kz;
 
         static const double a_lattice = 5.43e-10;
         double to_pi = 1.0 / ((PI / a_lattice) * spr0);
