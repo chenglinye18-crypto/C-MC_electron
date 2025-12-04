@@ -1989,6 +1989,9 @@ void MeshQuantities::particle_fly() {
   // 初始化
   prev_step.loop_idx = 0; prev_step.trigger_flag = -1;
   prev_step.x = x; prev_step.y = y; prev_step.z = z;
+  prev_step.i = icell; prev_step.j = jcell; prev_step.k = kcell;
+  prev_step.kx = kx; prev_step.ky = ky; prev_step.kz = kz;
+  prev_step.vx = vx; prev_step.vy = vy; prev_step.vz = vz;
   prev_step.calc_TetTf = -1; prev_step.calc_CellTf = -1;
 
   if(CellTime()<MY_ZERO){
@@ -2151,6 +2154,46 @@ void MeshQuantities::particle_fly() {
     x += vx * Tf;
     y += vy * Tf;
     z += vz * Tf;
+
+    // [DEBUG] 位置越界追踪：一旦偏离当前 cell 边界超过 1e-3 单元就打印
+    const double pos_tol = 1e-3;
+    double rx = (x - lx[icell]) / dx[icell];
+    double ry = (y - ly[jcell]) / dy[jcell];
+    double rz = (z - lz[kcell]) / dz[kcell];
+    if (rx < -pos_tol || rx > 1.0 + pos_tol ||
+        ry < -pos_tol || ry > 1.0 + pos_tol ||
+        rz < -pos_tol || rz > 1.0 + pos_tol) {
+        // 手动算一遍当前时刻到各面的时间（不改动全局 idir）
+        double tx_dbg = 1e99, ty_dbg = 1e99, tz_dbg = 1e99;
+        int dirx_dbg = UP, diry_dbg = RIGHT, dirz_dbg = FRONT;
+        if (vx > 0) { dirx_dbg = DOWN; tx_dbg = (lx[icell + 1] - x) / vx; }
+        else if (vx < 0) { dirx_dbg = UP; tx_dbg = -(x - lx[icell]) / vx; }
+        if (vy > 0) { diry_dbg = RIGHT; ty_dbg = (ly[jcell + 1] - y) / vy; }
+        else if (vy < 0) { diry_dbg = LEFT; ty_dbg = -(y - ly[jcell]) / vy; }
+        if (vz > 0) { dirz_dbg = BACK; tz_dbg = (lz[kcell + 1] - z) / vz; }
+        else if (vz < 0) { dirz_dbg = FRONT; tz_dbg = -(z - lz[kcell]) / vz; }
+
+        cout << "\n[DEBUG][particle_fly] position left cell bounds\n"
+             << "  loop=" << loop << " flag=" << flag << " idir=" << idir << " par_id=" << par_id << endl
+             << "  cell idx (i,j,k): " << icell << ' ' << jcell << ' ' << kcell << endl
+             << "  pos (scaled): " << x * spr0 << ' ' << y * spr0 << ' ' << z * spr0 << endl
+             << "  ratio (x,y,z): " << rx << ' ' << ry << ' ' << rz << endl
+             << "  bounds x=[" << lx[icell] * spr0 << ',' << lx[icell + 1] * spr0 << "], "
+             << "y=[" << ly[jcell] * spr0 << ',' << ly[jcell + 1] * spr0 << "], "
+             << "z=[" << lz[kcell] * spr0 << ',' << lz[kcell + 1] * spr0 << ']' << endl
+             << "  vel: " << vx << ' ' << vy << ' ' << vz << "  Tf=" << Tf
+             << "  CellTf=" << CellTf << " TetTf=" << TetTf << endl
+             << "  dbg tx/ty/tz: " << tx_dbg << " (" << dirx_dbg << ") "
+             << ty_dbg << " (" << diry_dbg << ") "
+             << tz_dbg << " (" << dirz_dbg << ")" << endl
+             << "  prev loop " << prev_step.loop_idx << " flag=" << prev_step.trigger_flag
+             << " pos(ratio): " << prev_step.x * spr0 << ' ' << prev_step.y * spr0 << ' ' << prev_step.z * spr0
+             << " / "
+             << ((prev_step.x - lx[prev_step.i]) / dx[prev_step.i]) << ' '
+             << ((prev_step.y - ly[prev_step.j]) / dy[prev_step.j]) << ' '
+             << ((prev_step.z - lz[prev_step.k]) / dz[prev_step.k]) << endl
+             << endl;
+    }
    
     if(energy < 0) {
       Flag_Catch = true;
@@ -2212,9 +2255,10 @@ void MeshQuantities::particle_fly() {
           HolePhononScatter();
       }
 
+      // 无论是否自散射，都需要刷新时间，避免使用过期的 CellTf/TetTf
+      Flag_GetTetTime = true;
+      Flag_GetCellTime = true;
       if (!Flag_SelfScatter) {
-          Flag_GetTetTime = true;
-          Flag_GetCellTime = true;
           sttt.phononScatter ++;
       }
       Flag_GetPhScTime = true;
@@ -2236,10 +2280,11 @@ void MeshQuantities::particle_fly() {
       }
       OutPar(&new_par);
       
+      // 自散射也要刷新时间
       old_flag_getTetTime = Flag_SelfScatter;
+      Flag_GetTetTime = true;
+      Flag_GetCellTime = true;
       if(!Flag_SelfScatter) {
-          Flag_GetTetTime = true;
-          Flag_GetCellTime = true;
           sttt.impurityScatter ++;
       }
       Flag_GetImpScTime = true;
@@ -2247,10 +2292,9 @@ void MeshQuantities::particle_fly() {
     }
     case 5 : { // Surface Scatter
       ParticleSurfaceScatter();
-      if(!Flag_SelfScatter) {
-          Flag_GetTetTime = true;
-          Flag_GetCellTime = true;
-      }
+      // 粗糙/表面声子，即便拒绝也要重算 CellTf/TetTf
+      Flag_GetTetTime = true;
+      Flag_GetCellTime = true;
       Flag_GetSurfScTime = true;
       break;
     }
