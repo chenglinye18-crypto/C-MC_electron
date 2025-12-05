@@ -506,6 +506,7 @@ public :
   void AnalyticPhononScatter(Particle* p);
   void AnalyticImpurityScatter(Particle* p, double DA, double Rho, double eps_si, double frickel, double ImpScGamma_Max);
   void GetAnalyticV_FromTable(Particle* p);
+  void GetAnalyticStateByIndex(Particle* p, double &vx_out, double &vy_out, double &vz_out, double &E_out);
   void GetAnalyticV_By_Index(Particle* p);
   void ExportFullBandScattering(string output_path);
   double analytic_vx = 0.0;

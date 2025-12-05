@@ -12,6 +12,7 @@
 #include <cerrno>
 #include <cstring>
 #include <unistd.h>
+#include <fstream>
 
 /* -------------------------------------------------------------------------- */
 /** @brief 能带结构的对象
@@ -203,10 +204,10 @@ int MeshQuantities::carrier_inject() {
   if (p_jbegin == 0){ 
     /*true means source injection, number and charge are returned*/
      inject_particle(true, source_inject_num, source_inject_charge);
-/*
+
+     // 统计源端注入的粒子数与电荷（电子/空穴均累加，若空穴为0则不影响电子模拟）
      contact[0].NumParGen += source_inject_num[0] + source_inject_num[1];
      contact[0].CharGen += source_inject_charge[0] + source_inject_charge[1];
-     */
   }       
 
     /* inject particles from drain contact */
@@ -214,10 +215,10 @@ int MeshQuantities::carrier_inject() {
 
      /* false means drain injection, number and charge are returned */
      inject_particle(false, inject_num, inject_charge);
-/*
+
+     // 统计漏端注入的粒子数与电荷
      contact[1].NumParGen += inject_num[0] + inject_num[1];
      contact[1].CharGen += inject_charge[0] + inject_charge[1];
-     */
 
      /*for debug */
      // cout << inject_charge[0] << ' ' << inject_charge[1] << endl;
@@ -583,9 +584,72 @@ void MeshQuantities::run() {
     }
   }
 
+  // 仿真结束后输出存活粒子的最终状态，便于调试/后处理
+  dump_final_particle_info();
+
   if (Flag_compute_heat) 
     compute_heat();
+}
 
+/**
+ * @brief 仿真结束时，将存活粒子的最终状态输出到文件
+ */
+void MeshQuantities::dump_final_particle_info() {
+  MPI_Status status;
+  const string filename = "debug_final_particles.txt";
+  int token = 1;
+
+  // 串行化写文件，避免并发覆盖
+  if (mpi_rank != 0)
+    MPI_Recv(&token, 1, MPI_INT, mpi_rank - 1, 199, MPI_COMM_WORLD, &status);
+
+  ofstream ofile;
+  if (mpi_rank == 0) {
+    ofile.open(filename.c_str(), iostream::trunc);
+    ofile << "ID Type i j k x(m) y(m) z(m) kx ky kz vx(m/s) vy(m/s) vz(m/s) Energy(eV) charge kx_idx ky_idx kz_idx" << endl;
+  } else {
+    ofile.open(filename.c_str(), iostream::app);
+  }
+
+  for (int i = c_ibegin; i <= c_iend; i ++)
+    for (int k = c_kbegin; k <= c_kend; k ++)
+      for (int j = c_jbegin; j <= c_jend; j ++){
+
+        list<Particle> * c_par_list = &par_list[C_LINDEX_GHOST_ONE(i,j,k)];
+
+        for (list<Particle>::iterator iter = c_par_list->begin(); iter != c_par_list->end(); iter ++){
+            if (iter->i < 0) continue; // 已被捕获的粒子
+
+            double vx_out = 0.0, vy_out = 0.0, vz_out = 0.0;
+            double E_out = iter->energy * pot0;
+
+            if (band.use_analytic_band) {
+                Particle tmp = *iter;
+                band.GetAnalyticStateByIndex(&tmp, vx_out, vy_out, vz_out, E_out);
+            }
+
+            ofile << iter->par_id << ' '
+                  << iter->par_type << ' '
+                  << iter->i << ' ' << iter->j << ' ' << iter->k << ' '
+                  << iter->x * spr0 << ' '  // x(m)
+                  << iter->y * spr0 << ' '  // y(m)
+                  << iter->z * spr0 << ' '  // z(m)
+                  << iter->kx << ' ' << iter->ky << ' ' << iter->kz << ' '
+                  << vx_out << ' ' << vy_out << ' ' << vz_out << ' '
+                  << E_out << ' '
+                  << iter->charge << ' '
+                  << iter->kx_idx << ' ' << iter->ky_idx << ' ' << iter->kz_idx
+                  << endl;
+        }
+      }
+
+  ofile.close();
+
+  if (mpi_rank != mpi_size - 1)
+    MPI_Send(&token, 1, MPI_INT, mpi_rank + 1, 199, MPI_COMM_WORLD);
+
+  if (mpi_rank == 0)
+    cout << "Final particle state saved to " << filename << endl;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -831,7 +895,7 @@ void MeshQuantities::current_scatter_info() {
           << "EnergyGen= " << total_energy_gen[icont]  << endl
           << "EnergyCatch= " << total_energy_catch[icont]  << endl
           << "EnergyCurrent= " << (total_energy_catch[icont] - total_energy_gen[icont]) / (dt *  stat_step) * pot0  << endl
-            << "Current = " << (total_gen[icont] - total_catch[icont]) /  (dt * stat_step)  * curr0 * 1e-2 << endl;
+            << "Current = " << (total_gen[icont] - total_catch[icont]) /  (dt * stat_step)  * curr0 << endl;
     }
     ofile << "times of phonon scatter : " << phonon_scatter << endl
           << "times of impurity scatter : " << impurity_scatter << endl;
@@ -4356,7 +4420,7 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   dpc0  =field0;            // 应变势尺度
   scrt0 =1.0/time0;         // 散射率尺度 k_BT/h  
 
-  //____current [A/m]
+  //____current [A]
   curr0 =ec0/time0;
 
   //effective density of state: 2.82 x 1e25 , aproximately
@@ -4449,7 +4513,11 @@ void MeshQuantities::scaling() {
     for (k = c_kbegin; k <= c_kend; k ++)
       for (j = c_jbegin_ghost; j <= c_jend_ghost; j ++)
       {
-        donor[C_LINDEX_GHOST_ONE(i,j,k)] /= conc0;
+        // 输入假定为 cm^-3，先转为 m^-3，再归一化
+        donor[C_LINDEX_GHOST_ONE(i,j,k)]    *= 1.0e6;
+        acceptor[C_LINDEX_GHOST_ONE(i,j,k)] *= 1.0e6;
+
+        donor[C_LINDEX_GHOST_ONE(i,j,k)]    /= conc0;
         acceptor[C_LINDEX_GHOST_ONE(i,j,k)] /= conc0;
       }
 }

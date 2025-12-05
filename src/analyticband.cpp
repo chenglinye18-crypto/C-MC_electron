@@ -1034,6 +1034,20 @@ void Band::GetAnalyticV_FromTable(Particle* p) {
     }
 }
 
+// 根据粒子索引查表，返回速度与能量（不修改输入粒子）
+void Band::GetAnalyticStateByIndex(Particle* p, double &vx_out, double &vy_out, double &vz_out, double &E_out) {
+    vx_out = vy_out = vz_out = 0.0;
+    E_out = 0.0;
+    if (!use_analytic_band || p == nullptr) return;
+
+    Particle tmp = *p; // 不影响原粒子
+    GetAnalyticV_FromTable(&tmp);
+    vx_out = analytic_vx * velo0;
+    vy_out = analytic_vy * velo0;
+    vz_out = analytic_vz * velo0;
+    E_out = tmp.energy * pot0;
+}
+
 void Band::BuildAnalyticInjectionTable() {
     cout << "Building Analytic Injection Table (Output to file)..." << endl;
 

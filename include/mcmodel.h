@@ -519,6 +519,8 @@ public:
 
   void initialize(char *);
 
+  void dump_final_particle_info();
+
   void run();
 
 };
