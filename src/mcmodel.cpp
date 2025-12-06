@@ -33,6 +33,8 @@ MeshQuantities::MeshQuantities() {
   mpi_size = Comm->NumProc();
 
   t_time = new Epetra_Time(*Comm);
+
+  p_diag_adder = NULL;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -584,11 +586,11 @@ void MeshQuantities::run() {
     }
   }
 
-  // 仿真结束后输出存活粒子的最终状态，便于调试/后处理
-  dump_final_particle_info();
-
   if (Flag_compute_heat) 
     compute_heat();
+
+  // 仿真结束后输出存活粒子的最终状态，便于调试/后处理
+  dump_final_particle_info();
 }
 
 /**
@@ -842,31 +844,58 @@ void MeshQuantities::set_stat_zero() {
 
 void MeshQuantities::current_scatter_info() {
 
-  double gen_tmp[MNContact], catch_tmp[MNContact], energy_gen_tmp[MNContact], energy_catch_tmp[MNContact];
-  int num_gen_tmp[MNContact], num_catch_tmp[MNContact];
-  double total_gen[MNContact], total_catch[MNContact];
-  double total_energy_gen[MNContact], total_energy_catch[MNContact];
-  int total_genNum[MNContact], total_catchNum[MNContact];
-  double * lcurrent_reduced, * rcurrent_reduced;
+  const int NumContact = contact.size();
 
-  int icont;
-  int NumContact = contact.size();
+  // 本地分类统计
+  vector<double> loc_ele_gen(NumContact, 0.0), loc_ele_catch(NumContact, 0.0);
+  vector<double> loc_hole_gen(NumContact, 0.0), loc_hole_catch(NumContact, 0.0);
+  vector<int>    loc_num_ele_gen(NumContact, 0), loc_num_ele_catch(NumContact, 0);
 
-  for (icont = 0 ; icont < NumContact; ++ icont) {
-    gen_tmp[icont] = contact[icont].CharGen;
-    energy_gen_tmp[icont] = contact[icont].EnergyGen;
-    catch_tmp[icont] = contact[icont].CharCatch;
-    energy_catch_tmp[icont] = contact[icont].EnergyCatch;
-    num_gen_tmp[icont] = contact[icont].NumParGen;
-    num_catch_tmp[icont] = contact[icont].NumParCatch;
+  // 总量（兼容旧输出）
+  vector<double> loc_gen(NumContact, 0.0), loc_catch(NumContact, 0.0);
+  vector<double> loc_energy_gen(NumContact, 0.0), loc_energy_catch(NumContact, 0.0);
+  vector<int>    loc_num_gen(NumContact, 0), loc_num_catch(NumContact, 0);
+
+  for (int icont = 0 ; icont < NumContact; ++ icont) {
+    loc_ele_gen[icont]   = contact[icont].CharEleGen;
+    loc_ele_catch[icont] = contact[icont].CharEleCatch;
+    loc_hole_gen[icont]  = contact[icont].CharHoleGen;
+    loc_hole_catch[icont]= contact[icont].CharHoleCatch;
+    loc_num_ele_gen[icont]   = contact[icont].NumEleGen;
+    loc_num_ele_catch[icont] = contact[icont].NumEleCatch;
+
+    loc_gen[icont]   = contact[icont].CharGen;
+    loc_catch[icont] = contact[icont].CharCatch;
+    loc_energy_gen[icont]   = contact[icont].EnergyGen;
+    loc_energy_catch[icont] = contact[icont].EnergyCatch;
+    loc_num_gen[icont]   = contact[icont].NumParGen;
+    loc_num_catch[icont] = contact[icont].NumParCatch;
   }
 
-  MPI_Allreduce(gen_tmp, total_gen, NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(catch_tmp, total_catch, NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(energy_gen_tmp, total_energy_gen, NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(energy_catch_tmp, total_energy_catch, NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(num_gen_tmp, total_genNum, NumContact , MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(num_catch_tmp, total_catchNum, NumContact, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  // 全局归约
+  vector<double> tot_ele_gen = loc_ele_gen, tot_ele_catch = loc_ele_catch;
+  vector<double> tot_hole_gen = loc_hole_gen, tot_hole_catch = loc_hole_catch;
+  vector<int>    tot_num_ele_gen = loc_num_ele_gen, tot_num_ele_catch = loc_num_ele_catch;
+
+  vector<double> total_gen = loc_gen, total_catch = loc_catch;
+  vector<double> total_energy_gen = loc_energy_gen, total_energy_catch = loc_energy_catch;
+  vector<int>    total_genNum = loc_num_gen, total_catchNum = loc_num_catch;
+
+  if (NumContact > 0) {
+    MPI_Allreduce(MPI_IN_PLACE, tot_ele_gen.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, tot_ele_catch.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, tot_hole_gen.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, tot_hole_catch.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, tot_num_ele_gen.data(), NumContact, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, tot_num_ele_catch.data(), NumContact, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    MPI_Allreduce(MPI_IN_PLACE, total_gen.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, total_catch.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, total_energy_gen.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, total_energy_catch.data(), NumContact, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, total_genNum.data(), NumContact, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, total_catchNum.data(), NumContact, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  }
 
   int phonon_scatter_tmp = sttt.phononScatter;
   int impurity_scatter_tmp = sttt.impurityScatter;
@@ -884,26 +913,38 @@ void MeshQuantities::current_scatter_info() {
     else 
       ofile.open(filename.c_str(),iostream::app);
 
-    ofile << "step = " << step << endl;
+    ofile << "==================== Step " << step << " Detailed Report ====================" << endl;
     
-    for (icont = 0 ; icont < NumContact; ++ icont) {
-      ofile << "icont = " << icont << endl;
-      ofile << "CharGen = " << total_gen[icont] << ' '
-          << "NumParGen = " << total_genNum[icont] << ' '
-          << "CharCatch = " << total_catch[icont]  << ' '
-          << "NumParCatch = " << total_catchNum[icont]  << endl
-          << "EnergyGen= " << total_energy_gen[icont]  << endl
-          << "EnergyCatch= " << total_energy_catch[icont]  << endl
-          << "EnergyCurrent= " << (total_energy_catch[icont] - total_energy_gen[icont]) / (dt *  stat_step) * pot0  << endl
-            << "Current = " << (total_gen[icont] - total_catch[icont]) /  (dt * stat_step)  * curr0 << endl;
+    for (int icont = 0 ; icont < NumContact; ++ icont) {
+      double i_ele = (tot_ele_gen[icont] - tot_ele_catch[icont]) /  (dt * stat_step)  * curr0;
+      double i_hole = (tot_hole_gen[icont] - tot_hole_catch[icont]) /  (dt * stat_step)  * curr0;
+      double i_total = (total_gen[icont] - total_catch[icont]) /  (dt * stat_step)  * curr0;
+
+      ofile << "Contact " << icont << ":" << endl;
+      ofile << "  [Electron]" << endl;
+      ofile << "    Gen : " << tot_num_ele_gen[icont] << " particles (" << tot_ele_gen[icont] << " C)" << endl;
+      ofile << "    Catch: " << tot_num_ele_catch[icont] << " particles (" << tot_ele_catch[icont] << " C)" << endl;
+      ofile << "    Net I: " << i_ele << " A" << endl;
+
+      ofile << "  [Hole]" << endl;
+      ofile << "    Gen : " << tot_hole_gen[icont] << " C" << endl;
+      ofile << "    Catch: " << tot_hole_catch[icont] << " C" << endl;
+      ofile << "    Net I: " << i_hole << " A" << endl;
+
+      ofile << "  [Total]" << endl;
+      ofile << "    CharGen/Catch: " << total_gen[icont] << " / " << total_catch[icont] << " C" << endl;
+      ofile << "    NumGen/Catch : " << total_genNum[icont] << " / " << total_catchNum[icont] << endl;
+      ofile << "    EnergyGen/Catch: " << total_energy_gen[icont] << " / " << total_energy_catch[icont] << endl;
+      ofile << "    Net I: " << i_total << " A" << endl;
+      ofile << "-----------------------------------------------------------" << endl;
     }
     ofile << "times of phonon scatter : " << phonon_scatter << endl
           << "times of impurity scatter : " << impurity_scatter << endl;
     ofile.close();
   }
 
-  rcurrent_reduced = (double *) malloc(p_numy * sizeof(double));
-  lcurrent_reduced = (double *) malloc(p_numy * sizeof(double));
+  double * rcurrent_reduced = (double *) malloc(p_numy * sizeof(double));
+  double * lcurrent_reduced = (double *) malloc(p_numy * sizeof(double));
 
   MPI_Allreduce(rcurrent, rcurrent_reduced, p_numy, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(lcurrent, lcurrent_reduced, p_numy, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -917,9 +958,9 @@ void MeshQuantities::current_scatter_info() {
 
     for (i = 0; i < p_numy; i ++)
       ofile << i << ' ' 
-	    << rcurrent_reduced[i] / (dt * stat_step) * curr0 << ' ' 
-	    << lcurrent_reduced[i] / (dt * stat_step) * curr0 << ' '  
-	    << (rcurrent_reduced[i] - lcurrent_reduced[i]) / (dt * stat_step) * curr0 << endl;  
+            << rcurrent_reduced[i] / (dt * stat_step) * curr0 << ' ' 
+            << lcurrent_reduced[i] / (dt * stat_step) * curr0 << ' '  
+            << (rcurrent_reduced[i] - lcurrent_reduced[i]) / (dt * stat_step) * curr0 << endl;  
     ofile.close();
   }
 
@@ -927,6 +968,7 @@ void MeshQuantities::current_scatter_info() {
   free(lcurrent_reduced);
 
 }
+
 /* -------------------------------------------------------------------------- */
 /** @brief 从之前的结果开始计算.
  * 
@@ -2541,7 +2583,11 @@ void MeshQuantities::compute_field() {
 
 //  if (Flag_compute_potential) {
 //if (Flag_NonLinearPoisson)
-    linear_poisson_solver();
+    if (band.use_analytic_band) {
+      nonlinear_poisson_solver();
+    } else {
+      linear_poisson_solver();
+    }
 
     save_poisson_pot();
 
@@ -3010,6 +3056,60 @@ void MeshQuantities::compute_cell_charge() {
 	          c_par_charge_value[C_LINDEX_GHOST_ONE(i,j,k)] /= cvol[C_LINDEX_GHOST_ONE(i,j,k)];
 	          c_par_charge_value[C_LINDEX_GHOST_ONE(i,j,k)] = Max(c_par_charge_value[C_LINDEX_GHOST_ONE(i,j,k)], 0.5 * c_da_value[C_LINDEX_GHOST_ONE(i,j,k)]);
           }
+}
+
+// Newton-Raphson 求解解析能带下的非线性泊松方程
+void MeshQuantities::nonlinear_poisson_solver() {
+    // [Modify] 使用阻尼 Picard 迭代 (Damped Picard Iteration)
+    // 优势：复用已有的线性求解器 (poisson_solver)，无需每一步重构矩阵，速度极快。
+    
+    int max_iter = 100;       // 最大迭代次数
+    double alpha = 0.05;      // 阻尼系数 (0 < alpha <= 1)。
+                              // 对于 exp(-phi) 这种强非线性，建议取小值 (0.05 - 0.2) 防止发散。
+    double tol = 1e-5;        // 收敛容差
+
+    Epetra_Vector phi_old(*p_map_nonoverlap);
+    Epetra_Vector phi_new_raw(*p_map_nonoverlap); // 线性求解器的直接输出
+    double norm_diff = 0.0;
+
+    // 确保使用初始化的线性求解器 (常数矩阵 A)
+    // 不要在这里 delete poisson_solver !
+
+    for (int iter = 0; iter < max_iter; ++iter) {
+        // 1. 备份旧电势 phi_k
+        phi_old = *p_poisson_pot; 
+        
+        // 2. 更新 RHS
+        // compute_rhs() 会读取当前的 p_poisson_pot (即 phi_old) 
+        // 来计算 p = ni * exp(-phi_old)，并填入 p_rhs
+        compute_rhs(); 
+        
+        // 3. 求解线性方程 A * phi_star = RHS(phi_old)
+        // 这里复用了初始化好的 poisson_solver，只有回代过程，极快
+        poisson_solver->solve_poisson(p_rhs, &phi_new_raw);
+        
+        // 4. 阻尼更新 (Damping / Mixing)
+        // phi_{k+1} = (1 - alpha) * phi_k + alpha * phi_star
+        // 如果直接用 phi_star，exp 非线性会导致剧烈震荡
+        p_poisson_pot->Update(1.0 - alpha, phi_old, alpha, phi_new_raw, 0.0);
+        
+        // 5. 检查收敛性 (Norm of Difference)
+        Epetra_Vector diff(*p_map_nonoverlap);
+        diff.Update(1.0, *p_poisson_pot, -1.0, phi_old, 0.0);
+        diff.Norm2(&norm_diff);
+        
+        // 可选：在 Step 0 打印一下收敛过程，调参用
+        if (mpi_rank == 0 && step == 0 && iter % 10 == 0) {
+             // cout << "  Picard Iter " << iter << " Diff: " << norm_diff << endl;
+        }
+
+        // 如果变化很小，认为收敛
+        if (norm_diff < tol) {
+            break;
+        }
+    }
+    
+    // 注意：不需要 delete p_diag_adder，因为 Picard 模式不使用它
 }
 
 void MeshQuantities::linear_poisson_solver() {
@@ -5130,12 +5230,21 @@ Epetra_CrsMatrix * MeshQuantities::init_matrix(){
 
    for (i = 0;i < p_num_local_nonoverlap; i ++){
      flag = false;
-     for (j = 0;j < 7; j ++)
-       if (nonzero[i][j] != 0) {
+   for (j = 0;j < 7; j ++)
+     if (nonzero[i][j] != 0) {
 	 flag = true;
 	 break;
-       }
-     if (!flag) nonzero[i][6] = 1;
+      }
+    if (!flag) nonzero[i][6] = 1;
+  }
+
+   // 若存在额外的对角修正（Newton 法 Jacobian），叠加到中心节点
+   if (p_diag_adder != NULL) {
+     double * diag_val;
+     p_diag_adder->ExtractView(&diag_val);
+     for (i = 0; i < p_num_local_nonoverlap; i++) {
+       nonzero[i][6] += diag_val[i];
+     }
    }
  
    for(icont=0;icont<contact.size();icont++)

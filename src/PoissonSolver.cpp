@@ -42,7 +42,7 @@ void Aztec_PoissonSolver::solve_poisson(Epetra_Vector * rhs, Epetra_Vector * sol
 
 Aztec_PoissonSolver::~Aztec_PoissonSolver() {
   delete Aztec_Problem;
-  delete A;
+  //delete A;
 }
 
 Amesos_PoissonSolver::Amesos_PoissonSolver(MeshQuantities * mq)
@@ -78,7 +78,7 @@ void Amesos_PoissonSolver::solve_poisson(Epetra_Vector * rhs, Epetra_Vector * so
 }
 
 Amesos_PoissonSolver::~Amesos_PoissonSolver() {
-  delete A;
+  //delete A;
   delete DSolver;
   delete Amesos_Problem;
 }

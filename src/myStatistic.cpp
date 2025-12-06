@@ -41,4 +41,11 @@ void Contact::reset() {
   CharGen = 0;    
   NumParCatch = 0;
   CharCatch = 0;
+  EnergyGen = 0;
+  EnergyCatch = 0;
+
+  NumEleGen = NumHoleGen = 0;
+  NumEleCatch = NumHoleCatch = 0;
+  CharEleGen = CharHoleGen = 0.0;
+  CharEleCatch = CharHoleCatch = 0.0;
 }

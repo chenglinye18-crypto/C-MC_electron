@@ -78,9 +78,14 @@ public:
   int NumParCatch;         //number of particles catched by contact
   double CharCatch;        //charge catched by contact
   double EnergyCatch;        //charge catched by contact
+
+  // 电子/空穴分别统计，便于电流诊断
+  int NumEleGen, NumHoleGen;
+  int NumEleCatch, NumHoleCatch;
+  double CharEleGen, CharHoleGen;
+  double CharEleCatch, CharHoleCatch;
 public:
   void reset();
 };
 
 #endif
-

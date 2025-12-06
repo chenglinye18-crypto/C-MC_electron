@@ -559,9 +559,19 @@ void MeshQuantities::Generate()
       err_message(WRONG_CONTACT, "Attached_Contact wrong , in GENERATE.");
     }
 
+    // 总量统计
     contact[icont].NumParGen++;
     contact[icont].CharGen += charge;
     contact[icont].EnergyGen += energy;
+
+    // 分类统计：电子 / 空穴
+    if (par_type == PELEC) {
+      contact[icont].NumEleGen++;
+      contact[icont].CharEleGen += charge;
+    } else {
+      contact[icont].NumHoleGen++;
+      contact[icont].CharHoleGen += charge;
+    }
 
     if (idir == RIGHT) 
       rcurrent[jcell + 1] += charge;
@@ -652,6 +662,15 @@ void MeshQuantities::CatchAtContact()
   contact[icont].NumParCatch++;       // 当前 contact 上捕获的粒子数 + 1
   contact[icont].CharCatch += charge; // 更新当前 contact 上捕获的电荷量
   contact[icont].EnergyGen += energy; // 更新当前 contact 上因捕获粒子而产生的能量
+
+  // 分类统计：电子/空穴
+  if (par_type == PELEC) {
+    contact[icont].NumEleCatch++;
+    contact[icont].CharEleCatch += charge;
+  } else {
+    contact[icont].NumHoleCatch++;
+    contact[icont].CharHoleCatch += charge;
+  }
 }
 
 void MeshQuantities::CatchAtGate()

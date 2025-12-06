@@ -109,6 +109,8 @@ class MeshQuantities {
   Epetra_Vector * c_h_roughnessRate, * c_h_surfPhononRate;
 
   Epetra_Vector * p_electron_heat, * p_hole_heat, *p_e_heat_weight, *p_h_heat_weight;
+  // Newton-Raphson: 额外的对角线修正项
+  Epetra_Vector * p_diag_adder;
 
   int num_local_y;
   
@@ -402,7 +404,7 @@ class MeshQuantities {
 
   void compute_cell_charge();
 
-  void nonlinear_poisson_solver(Epetra_Vector *, bool);
+  void nonlinear_poisson_solver();
 
   void linear_poisson_solver() ;
 
