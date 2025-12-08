@@ -2450,8 +2450,15 @@ void MeshQuantities::HitAnalyticKGrid() {
                           par_iter->ky_idx < 0 || par_iter->ky_idx >= N ||
                           par_iter->kz_idx < 0 || par_iter->kz_idx >= N);
     if (out_of_bounds) {
-        Flag_Catch = true;
-        return;
+        if (mpi_rank == 0) {
+            cout << "\n[ERROR] Particle escaped Analytic K-Grid (Runaway)!" << endl;
+            cout << "  ID: " << par_iter->par_id << endl;
+            cout << "  Indices: (" << par_iter->kx_idx << ", " << par_iter->ky_idx << ", " << par_iter->kz_idx << ")" << endl;
+            cout << "  Limit: [0, " << N-1 << "]" << endl;
+            cout << "  Position: (" << par_iter->x * spr0 << ", " << par_iter->y * spr0 << ", " << par_iter->z * spr0 << ")" << endl;
+            cout << "  Energy (before): " << par_iter->energy * eV0 << " eV" << endl;
+        }
+        exit(1);
     }
 
     // 将 k 定位到新的格点

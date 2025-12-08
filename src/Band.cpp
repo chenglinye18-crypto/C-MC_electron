@@ -4486,7 +4486,7 @@ void Band::IELEC(string path)
         alpha_norm = alpha_val * eV0;
 
         // 先生成解析能带文件，再读取并建索引表
-        //InitAnalyticBand(alpha_norm, mell, melt, path);
+        InitAnalyticBand(alpha_norm, mell, melt, path);
         ReadAnalyticData(path);
         InitValleyConfiguration();
         InitAxisLookupTable();

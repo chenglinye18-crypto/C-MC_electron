@@ -32,8 +32,8 @@ std::vector<double> GenerateNonUniformTicks() {
     std::vector<double> critical_points = {0.0, 1.7, -1.7};
     
     // 定义覆盖范围
-    double k_min = -2.15; // 稍微扩大一点范围
-    double k_max = 2.15;
+    double k_min = -2.1; // 稍微扩大一点范围
+    double k_max = 2.1;
     
     // 步长设定
     double step_coarse = 0.1; 
@@ -55,7 +55,7 @@ std::vector<double> GenerateNonUniformTicks() {
 
     // 2. 波谷附近细网格 (以 1.7 和 -1.7 为锚点错开)
     // 范围：波谷中心 +/- 0.3
-    double fine_width = 0.3;
+    double fine_width = 0.15;
     for (double k = 0.5 * step_fine; k <= fine_width; k += step_fine) {
         // +1.7 附近
         raw_ticks.push_back(1.7 + k);
@@ -63,6 +63,8 @@ std::vector<double> GenerateNonUniformTicks() {
         // -1.7 附近
         raw_ticks.push_back(-1.7 + k);
         raw_ticks.push_back(-1.7 - k);
+        raw_ticks.push_back(k);
+        raw_ticks.push_back(-k);
     }
 
     // 3. 排序并过滤
