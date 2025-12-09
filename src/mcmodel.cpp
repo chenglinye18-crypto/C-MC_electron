@@ -3438,17 +3438,48 @@ void MeshQuantities::select_kstate_fermi_dirac(Particle * iter, int dir, double 
 void MeshQuantities::select_kstate(Particle * iter, int dir) {
   // 解析能带分支
   if (band.use_analytic_band) {
-    double tmp_const = 1 - exp(- band.emax);
-    iter->energy = -log(1 - Random() * tmp_const);
+    double tmp_const = 1.0 - exp(-band.emax);
+    
+    // 使用 goto 标签实现拒绝采样循环 (替代递归，防止栈溢出)
+    FindAnalyticK:
 
+    // 1. 玻尔兹曼采样 (Boltzmann Factor)
+    // 随机生成一个候选能量，服从 exp(-E/kT)
+    iter->energy = -log(1.0 - Random() * tmp_const);
+
+    // 2. [FIX] 态密度拒绝采样 (DOS Rejection)
+    // 物理分布 = Boltzmann * DOS
+    // 如果不加这一步，粒子会过多地聚集在 DOS 极小的 0 eV 附近
+    
+    // 计算当前能量对应的 Bin 索引
+    int itab = (int)(iter->energy / band.dtable + 0.5);
+    
+    // 边界保护
+    if (itab < 0) itab = 0;
+    if (itab > band.num_ticks_axis) itab = band.num_ticks_axis; // 或 MTAB
+
+    // 获取该能量下的 DOS 值 (从之前读入的 analytic_dos.txt 数据中取)
+    // 注意：par_type 通常为 PELEC (0)
+    int band_idx = band.bandof[iter->par_type]; // 获取能带索引
+    double current_dos = band.dos[band_idx][itab]; 
+    
+    // 获取最大 DOS (在 ReadAnalyticData 中统计过的)
+    double max_dos = band.DOSMAX[iter->par_type];
+
+    // 执行拒绝判定
+    if (Random() * max_dos > current_dos) {
+        goto FindAnalyticK; // 拒绝该能量，重试
+    }
+
+    // 3. 确定能量后，选取 K 矢量
+    // 此时选出的 Energy 已经符合 Maxwell-Boltzmann 分布
     band.SelectAnalyticKState(iter, iter->energy);
+    
+    // 4. 查表获取速度
+    // SelectAnalyticKState 内部应该已经计算了 kx_idx 等，这里直接查速度
     band.GetAnalyticV_FromTable(iter);
 
-    if (((dir == 1) && (band.analytic_vy < 0)) || ((dir == -1) && (band.analytic_vy > 0))) {
-      select_kstate(iter, dir);
-      return;
-    }
-    iter->itet = 0;
+    iter->itet = 0; // 解析能带不需要四面体索引
     return;
   }
 
@@ -4894,6 +4925,7 @@ void MeshQuantities::read_device_file() {
    * @details quantumRegion xbegin xend ybegin yend zbegin zend
    */
   op["quantumRegion"] = 18;
+  op["refresh_box"] = 19;
   
   region_type["VACUUM"] = VACUUM;
   region_type["OXIDE"] = OXIDE;
@@ -5033,6 +5065,26 @@ void MeshQuantities::read_device_file() {
     case 18:
       get_cube_range(ifile, cube_pos, cmd.range);
       break;
+    case 19: { // refresh_box xmin xmax ymin ymax zmin zmax contact_id (nm -> m)
+      RefreshBox box;
+      double temp_val;
+      ifile >> temp_val; box.xmin = temp_val * 1.0e-9 / spr0;
+      ifile >> temp_val; box.xmax = temp_val * 1.0e-9 / spr0;
+      ifile >> temp_val; box.ymin = temp_val * 1.0e-9 / spr0;
+      ifile >> temp_val; box.ymax = temp_val * 1.0e-9 / spr0;
+      ifile >> temp_val; box.zmin = temp_val * 1.0e-9 / spr0;
+      ifile >> temp_val; box.zmax = temp_val * 1.0e-9 / spr0;
+      ifile >> box.contact_id;
+      refresh_boxes.push_back(box);
+      if (mpi_rank == 0) {
+        cout << "  [Config] Added Refresh Box: "
+             << "X[" << box.xmin *spr0 << "," << box.xmax *spr0<< "] "
+             << "Y[" << box.ymin *spr0<< "," << box.ymax *spr0<< "] "
+             << "Z[" << box.zmin *spr0<< "," << box.zmax *spr0<< "] "
+             << "ID=" << box.contact_id << endl;
+      }
+      break;
+    }
     // default:
     //   if (mpi_rank == 0)
     //     cout << "unrecognized option: " << para_type << endl;

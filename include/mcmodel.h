@@ -21,6 +21,14 @@ extern Band band;
 class Amesos_PoissonSolver;
 class PoissonSolver;
 
+// 刷新区域描述：用于后续热平衡/粒子刷新
+struct RefreshBox {
+  double xmin, xmax;
+  double ymin, ymax;
+  double zmin, zmax;
+  int contact_id;  // 关联接触编号（可用于统计或区分）
+};
+
 /* -------------------------------------------------------------------------- */
 /** @brief core class for the simulation
  */
@@ -518,6 +526,9 @@ class MeshQuantities {
 public:
   
   MeshQuantities();
+
+  // 存储所有配置的刷新区域
+  std::vector<RefreshBox> refresh_boxes;
 
   void initialize(char *);
 
