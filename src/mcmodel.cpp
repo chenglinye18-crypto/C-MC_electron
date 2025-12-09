@@ -2470,6 +2470,81 @@ void MeshQuantities::HitAnalyticKGrid() {
     band.GetAnalyticV_By_Index(&(*par_iter));
 }
 
+// 刷新热平衡粒子：将指定区域内的粒子重置为热平衡态
+void MeshQuantities::RefreshThermalReservoirs() {
+  if (refresh_boxes.empty())
+    return;
+
+  double *donor = NULL;
+  double *volume_value = NULL;
+  c_donor->ExtractView(&donor);
+  c_volume->ExtractView(&volume_value);
+
+  static const double a_lattice = 5.43e-10;
+  const double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+  static int refresh_id = 0;
+
+  for (size_t ibox = 0; ibox < refresh_boxes.size(); ibox++) {
+    RefreshBox &box = refresh_boxes[ibox];
+
+    for (int i = c_ibegin; i <= c_iend; i++) {
+      double x_center = 0.5 * (lx[i] + lx[i + 1]);
+      if (x_center < box.xmin || x_center > box.xmax) continue;
+
+      for (int k = c_kbegin; k <= c_kend; k++) {
+        double z_center = 0.5 * (lz[k] + lz[k + 1]);
+        if (z_center < box.zmin || z_center > box.zmax) continue;
+
+        for (int j = c_jbegin; j <= c_jend; j++) {
+          double y_center = 0.5 * (ly[j] + ly[j + 1]);
+          if (y_center < box.ymin || y_center > box.ymax) continue;
+
+          long index = C_LINDEX_GHOST_ONE(i, j, k);
+          list<Particle> *p_list = &par_list[index];
+          p_list->clear();  // 清空旧粒子
+
+          double cell_doping = donor[index];
+          if (cell_doping <= 0) {
+            cell_doping = band.Ni;  // 低掺杂/反型区使用本征浓度
+          }
+
+          double vol = volume_value[index];
+          double total_charge_weight = cell_doping * vol;
+          int target_num = 30;
+          if (target_num <= 0) continue;
+
+          double new_par_charge = -std::abs(total_charge_weight / target_num);
+
+          for (int n = 0; n < target_num; n++) {
+            Particle p;
+            p.par_id = -(refresh_id++);
+            p.par_type = PELEC;
+            p.charge = new_par_charge;
+            p.i = i; p.j = j; p.k = k;
+            p.left_time = dt;
+            p.seed = i * 1000000 + j * 10000 + k * 100 + n;
+
+            p.x = lx[i] + Random() * dx[i];
+            p.y = ly[j] + Random() * dy[j];
+            p.z = lz[k] + Random() * dz[k];
+
+            select_kstate(&p, 0);
+
+            if (band.use_analytic_band) {
+              p.kx_idx = band.GetAxisIndex_O1(p.kx * to_pi);
+              p.ky_idx = band.GetAxisIndex_O1(p.ky * to_pi);
+              p.kz_idx = band.GetAxisIndex_O1(p.kz * to_pi);
+              band.GetAnalyticV_By_Index(&p);
+            }
+
+            p_list->push_back(p);
+          }
+        }
+      }
+    }
+  }
+}
+
 // 审计粒子：统计有效区与 Ghost/无效区的数量
 void MeshQuantities::Audit_Particles() {
     long long total_in_memory = 0;
