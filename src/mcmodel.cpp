@@ -546,8 +546,15 @@ void MeshQuantities::run() {
       cout << par_num << " particles"  << endl;
     }
 
+    // 初始化刷新计数
+    refresh_net_change = 0;
+
     /* self-consistent iteration for one step */
     density();
+
+    RefreshThermalReservoirs();
+    // Debug: dump refreshed particles at step 0
+    dump_refresh_particles();
 
     /* this should be impossible , but still check it */
     if (par_num == 0) {
@@ -652,6 +659,86 @@ void MeshQuantities::dump_final_particle_info() {
 
   if (mpi_rank == 0)
     cout << "Final particle state saved to " << filename << endl;
+}
+
+/**
+ * @brief [DEBUG] 输出刷新区域内的粒子信息，用于验证热平衡分布（仅 step=0）
+ */
+void MeshQuantities::dump_refresh_particles() {
+  if (step != 0) return;
+
+  MPI_Status status;
+  const string filename = "debug_refresh_particles.txt";
+  int token = 1;
+
+  // 串行化写文件
+  if (mpi_rank != 0)
+    MPI_Recv(&token, 1, MPI_INT, mpi_rank - 1, 299, MPI_COMM_WORLD, &status);
+
+  ofstream ofile;
+  if (mpi_rank == 0) {
+    ofile.open(filename.c_str(), iostream::trunc);
+    ofile << "ID Type Cell(i,j,k) x(m) y(m) z(m) kx ky kz vx(m/s) vy(m/s) vz(m/s) Energy(eV) par_charge kx_idx ky_idx kz_idx" << endl;
+  } else {
+    ofile.open(filename.c_str(), iostream::app);
+  }
+
+  for (int i = c_ibegin; i <= c_iend; i ++)
+    for (int k = c_kbegin; k <= c_kend; k ++)
+      for (int j = c_jbegin; j <= c_jend; j ++){
+
+        // 判断该 cell 是否落在任一刷新盒内
+        bool is_refresh_cell = false;
+        double x_center = 0.5 * (lx[i] + lx[i+1]);
+        double y_center = 0.5 * (ly[j] + ly[j+1]);
+        double z_center = 0.5 * (lz[k] + lz[k+1]);
+
+        for (size_t ibox = 0; ibox < refresh_boxes.size(); ibox++) {
+            RefreshBox &box = refresh_boxes[ibox];
+            if (x_center >= box.xmin && x_center <= box.xmax &&
+                y_center >= box.ymin && y_center <= box.ymax &&
+                z_center >= box.zmin && z_center <= box.zmax) {
+                is_refresh_cell = true;
+                break;
+            }
+        }
+
+        if (!is_refresh_cell) continue;
+
+        list<Particle> * c_par_list = &par_list[C_LINDEX_GHOST_ONE(i,j,k)];
+
+        for (list<Particle>::iterator iter = c_par_list->begin(); iter != c_par_list->end(); iter ++){
+
+            double vx_out = 0.0, vy_out = 0.0, vz_out = 0.0;
+            double E_out = iter->energy * pot0;
+
+            if (band.use_analytic_band) {
+                Particle tmp = *iter;
+                band.GetAnalyticStateByIndex(&tmp, vx_out, vy_out, vz_out, E_out);
+            }
+
+            ofile << iter->par_id << ' '
+                  << iter->par_type << ' '
+                  << iter->i << ',' << iter->j << ',' << iter->k << ' '
+                  << iter->x * spr0 << ' '
+                  << iter->y * spr0 << ' '
+                  << iter->z * spr0 << ' '
+                  << iter->kx << ' ' << iter->ky << ' ' << iter->kz << ' '
+                  << vx_out << ' ' << vy_out << ' ' << vz_out << ' '
+                  << E_out << ' '
+                  << iter->charge << ' '
+                  << iter->kx_idx << ' ' << iter->ky_idx << ' ' << iter->kz_idx
+                  << endl;
+        }
+      }
+
+  ofile.close();
+
+  if (mpi_rank != mpi_size - 1)
+    MPI_Send(&token, 1, MPI_INT, mpi_rank + 1, 299, MPI_COMM_WORLD);
+
+  if (mpi_rank == 0)
+    cout << "  [DEBUG] Refresh particles (Step 0) dumped to '" << filename << "'." << endl;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1544,11 +1631,13 @@ void MeshQuantities::check_par_number() {
 
   int tot_catch_par, tot_gen_par;
   int local_actual_par, global_actual_par, tot_mr_gen_num;
+  int tot_refresh_change;
   int i,j,k;
   
   MPI_Allreduce(&catch_par_num, &tot_catch_par, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&gen_par, &tot_gen_par, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&mr_gen_num, &tot_mr_gen_num, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&refresh_net_change, &tot_refresh_change, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   local_actual_par = 0;
 
@@ -1563,13 +1652,16 @@ void MeshQuantities::check_par_number() {
 
   if (mpi_rank == 0){
 
-    if (global_actual_par != par_num - tot_catch_par + tot_gen_par + tot_mr_gen_num){
+    int expected_par = par_num - tot_catch_par + tot_gen_par + tot_mr_gen_num + tot_refresh_change;
+
+    if (global_actual_par != expected_par){
        cout << "particle number wrong: " << endl
 //             << "inject particles " << inject_par_num<< endl
              << "catch " << tot_catch_par << endl
              << "generate " << tot_gen_par<< endl
 	     << "mr_gen " << tot_mr_gen_num << endl
-             << "expected " << par_num - tot_catch_par + tot_gen_par + tot_mr_gen_num << endl
+             << "refresh_change " << tot_refresh_change << endl
+             << "expected " << expected_par << endl
              << "actual " << global_actual_par << endl;
       exit(1);
     }
@@ -2472,6 +2564,7 @@ void MeshQuantities::HitAnalyticKGrid() {
 
 // 刷新热平衡粒子：将指定区域内的粒子重置为热平衡态
 void MeshQuantities::RefreshThermalReservoirs() {
+  refresh_net_change = 0; // 本地计数清零
   if (refresh_boxes.empty())
     return;
 
@@ -2501,6 +2594,7 @@ void MeshQuantities::RefreshThermalReservoirs() {
 
           long index = C_LINDEX_GHOST_ONE(i, j, k);
           list<Particle> *p_list = &par_list[index];
+          int n_old = p_list->size();
           p_list->clear();  // 清空旧粒子
 
           double cell_doping = donor[index];
@@ -2511,7 +2605,12 @@ void MeshQuantities::RefreshThermalReservoirs() {
           double vol = volume_value[index];
           double total_charge_weight = cell_doping * vol;
           int target_num = 30;
-          if (target_num <= 0) continue;
+          if (target_num <= 0) {
+            refresh_net_change += (0 - n_old);
+            continue;
+          }
+
+          refresh_net_change += (target_num - n_old);
 
           double new_par_charge = -std::abs(total_charge_weight / target_num);
 

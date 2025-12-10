@@ -241,6 +241,9 @@ class MeshQuantities {
 
   int catch_par_num, unfinish_par, gen_par, mr_gen_num;
 
+  // 热平衡刷新导致的粒子数净变化（新 - 旧）
+  int refresh_net_change;
+
   double SurfRoughnessScRate, SurfPhononScRate;
 
   double * lcurrent, * rcurrent;
@@ -533,6 +536,8 @@ public:
   void initialize(char *);
 
   void dump_final_particle_info();
+
+  void dump_refresh_particles();
 
   void RefreshThermalReservoirs();
 
