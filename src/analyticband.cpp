@@ -24,68 +24,60 @@ static const double PI_SI = 3.1415926535897932;
 // 辅助工具函数
 // -----------------------------------------------------------------------------
 
-// 修改 GenerateNonUniformTicks 函数
-std::vector<double> GenerateNonUniformTicks() {
+// 非均匀 K 轴刻度生成（解析能带）
+std::vector<double> Band::GenerateNonUniformTicks() {
     std::vector<double> ticks;
-    
-    // 定义关键的物理对称点（能谷中心和Gamma点），这些点必须是边界！
-    std::vector<double> critical_points = {0.0, 1.7, -1.7};
-    
-    // 定义覆盖范围
-    double k_min = -2.1; // 稍微扩大一点范围
-    double k_max = 2.1;
-    
-    // 步长设定
-    double step_coarse = 0.1; 
-    double step_fine = 0.01; // 在波谷附近加密
-    
-    // 我们采用一种“以关键点为锚点”的生成策略
-    // 策略：网格点位置 = 关键点 +/- (N + 0.5) * step
-    // 这样，关键点正好位于 (N*step + 0.5*step) 和 (N*step - 0.5*step) 的正中间 -> 成为边界
-    
-    // 使用一个临时的 set 来自动排序和去重，防止重叠
     std::vector<double> raw_ticks;
-    
-    // 1. 全局粗网格 (以 0 为锚点错开)
-    // 生成 ... -0.15, -0.05, 0.05, 0.15 ...
+
+    // 能谷位置 (归一化后约 1.7)
+    double k_valley_loc = 1.7; 
+
+    // 范围限制
+    double k_min = -2.15;
+    double k_max = 2.15;
+
+    // 区域步长设置
+    // Gamma 点附近（横向，mt=0.19，需极密）
+    double step_gamma = 0.004;
+    double width_gamma = 0.28;  // +/-0.06
+
+    // Valley 附近（纵向，ml~0.91，稍密）
+    double step_valley = 0.01;
+    double width_valley = 0.4; // +/-0.25
+
+    // 背景粗网格
+    double step_coarse = 0.2;
+
+    // A. Gamma 点极细网格（对称、错位）
+    for (double k = 0.5 * step_gamma; k <= width_gamma; k += step_gamma) {
+        raw_ticks.push_back(k);
+        raw_ticks.push_back(-k);
+    }
+
+    // B. Valley 点细网格（对称、错位）
+    for (double k = 0.5 * step_valley; k <= width_valley; k += step_valley) {
+        raw_ticks.push_back(k_valley_loc + k);
+        raw_ticks.push_back(k_valley_loc - k);
+        raw_ticks.push_back(-k_valley_loc + k);
+        raw_ticks.push_back(-k_valley_loc - k);
+    }
+
+    // C. 全局粗网格
     for (double k = 0.5 * step_coarse; k <= k_max; k += step_coarse) {
         raw_ticks.push_back(k);
         raw_ticks.push_back(-k);
     }
 
-    // 2. 波谷附近细网格 (以 1.7 和 -1.7 为锚点错开)
-    // 范围：波谷中心 +/- 0.3
-    double fine_width = 0.15;
-    for (double k = 0.5 * step_fine; k <= fine_width; k += step_fine) {
-        // +1.7 附近
-        raw_ticks.push_back(1.7 + k);
-        raw_ticks.push_back(1.7 - k);
-        // -1.7 附近
-        raw_ticks.push_back(-1.7 + k);
-        raw_ticks.push_back(-1.7 - k);
-        raw_ticks.push_back(k);
-        raw_ticks.push_back(-k);
-    }
-
-    // 3. 排序并过滤
+    // 排序与过滤
     std::sort(raw_ticks.begin(), raw_ticks.end());
-    
-    // 过滤逻辑：
-    // 1. 范围限制 [k_min, k_max]
-    // 2. 剔除过于接近的点（优先保留细网格点）
-    //    由于我们是分别生成的，粗细网格交界处可能会有很近的点，需要清理
-    
     if (raw_ticks.empty()) return ticks;
 
-    ticks.push_back(raw_ticks[0]);
-    for (size_t i = 1; i < raw_ticks.size(); ++i) {
+    double min_separation = 0.4 * step_gamma; // 以最细步长为基准
+
+    for (size_t i = 0; i < raw_ticks.size(); ++i) {
         double curr = raw_ticks[i];
         if (curr < k_min || curr > k_max) continue;
-        
-        // 如果当前点和上一个点太近，说明粗细网格撞车了
-        // 我们保留细网格点（因为它更精确），通常后生成的（或者符合特定步长的）保留
-        // 这里简单处理：如果距离小于最小步长的 0.4 倍，就跳过
-        if (curr - ticks.back() > 0.4 * step_fine) {
+        if (ticks.empty() || (curr - ticks.back() > min_separation)) {
             ticks.push_back(curr);
         }
     }

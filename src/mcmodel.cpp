@@ -58,6 +58,14 @@ void MeshQuantities::initialize(char * FileName){
   /* 读入用户提供的，仿真所使用的模拟参数 */
   getInputData(FileName);
   
+  // 调试开关：强制使用解析模式的非线性泊松（默认暂时打开，调试完可置为 false）
+  band.Flag_Debug_Force_Analytic_Poisson = true;
+  if (mpi_rank == 0 && band.Flag_Debug_Force_Analytic_Poisson) {
+      cout << "\n[DEBUG WARNING] Flag_Debug_Force_Analytic_Poisson is ON." << endl;
+      cout << "  -> Forcing Nonlinear Poisson Solver and Analytic Hole Model." << endl;
+      cout << "  -> Particle motion remains in its original mode (FullBand/Analytic).\n" << endl;
+  }
+
 
   /* 读入物理模型的网格数据 */
   // 读取 grid 文件 (lgrid.txt) 中的格点信息
@@ -456,7 +464,13 @@ void MeshQuantities::density() {
    * 根据每个 cell 中的粒子的电荷量分配到每个 cell 的各个顶点上，
    * 分配时按照空间权重分配
    */
-  particle_to_density(p_par_charge, 2);
+  if (band.use_analytic_band || band.Flag_Debug_Force_Analytic_Poisson) {
+      // 调试/解析模式：只统计电子，空穴由 Poisson RHS 中的 exp(-phi) 补足
+      particle_to_density(p_par_charge, PELEC);
+  } else {
+      // 全能带：统计所有粒子
+      particle_to_density(p_par_charge, 2);
+  }
 
   /**
   * @brief 基于求解得到的电势与电荷分布计算电场
@@ -2764,7 +2778,8 @@ void MeshQuantities::compute_field() {
 
 //  if (Flag_compute_potential) {
 //if (Flag_NonLinearPoisson)
-    if (band.use_analytic_band) {
+    if (band.use_analytic_band || band.Flag_Debug_Force_Analytic_Poisson) {
+      cout << "Using Analytic Poisson Solver" << endl;
       nonlinear_poisson_solver();
     } else {
       linear_poisson_solver();
@@ -3467,8 +3482,10 @@ void MeshQuantities::linear_poisson_solver() {
       {
          int idx = P_LINDEX_ONE(i,j,k);
          
-         if (band.use_analytic_band) {
-             // 解析能带：显式加入空穴
+         bool use_analytic_rhs = band.use_analytic_band || band.Flag_Debug_Force_Analytic_Poisson;
+
+         if (use_analytic_rhs) {
+             // 解析/调试：显式加入空穴
              double rhs_val = p_dop_value[idx] + p_par_charge_value[idx] * vol_val[idx];
              
              if (p_mat_val[idx] & NODE_SILICON) {
