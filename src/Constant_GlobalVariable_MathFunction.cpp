@@ -21,6 +21,7 @@ bool gaasfl;
 
 bool sifl;
 bool gefl;
+bool igzofl;
 
 
 double MASSeff[NumParType]={0.286,0.8,1.0};

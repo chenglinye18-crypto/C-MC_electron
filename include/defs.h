@@ -135,4 +135,5 @@
 #define NODE_LEFT_BC (1 << 6)
 #define NODE_RIGHT_BC (1 << 7)
 #define NODE_QUANTUM (1 << 8)
+#define NODE_IGZO (1 << 9)
 #define STARS "**********"

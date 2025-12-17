@@ -4678,8 +4678,9 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
  
   frickel=1.0;          // Frickel 参数，保持默认 1
 	
-  sifl = true;          // 使用硅材料
+  sifl = false;          // 使用硅材料
   gaasfl = false;       // 未启用 GaAs
+  igzofl = true;
 
   psi_si = 4.05;        // Si 的功函数(eV)
 
@@ -4694,6 +4695,26 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
       siul =5.24e3;
       siut =2.47e3;
     }
+    else if (igzofl) // [新增 IGZO 分支]
+    {
+      if (mpi_rank == 0) cout << "  [Init] Loading IGZO Bulk Parameters..." << endl;
+
+      // 1. 等效晶格常数 (用于 K 空间归一化)
+      // 计算依据: Pi / a = 0.7557 A^-1 => a = 4.1577 Angstrom
+      sia0 = 9.6 * pow(3.0, 0.5) / 2.0 * 1.0e-10; // IGZO 晶格常数约为 4.16e-10 m
+
+      // 2. 质量密度 (Mass Density)
+      // 典型 IGZO 密度 ~ 6.1 g/cm^3
+      sirho = 6.10e3;
+
+      // 3. 声速 (Sound Velocity)
+      // 暂用典型氧化物估值 (纵向 ~6000 m/s, 横向 ~3500 m/s)
+      siul = 6.00e3; 
+      siut = 6.00e3; 
+      
+      // 注意：IGZO 的介电常数 eps[IGZO] 还需要在 initialize 或 init_cell_data 中设置
+      // 比如： epsi = 10.0 * 8.854e-12; (如果 epsi 是全局变量)
+    }
   else if(sifl)
     {
       //si bulk parameters
@@ -4705,6 +4726,8 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
       siul =9.05e3;
       siut =9.05e3;
     }
+
+
   //     get the material coefficients
   //____and normalize them
   read_device_input_temperature(filename); // 从输入文件读取温度

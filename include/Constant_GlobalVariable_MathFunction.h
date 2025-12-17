@@ -271,6 +271,7 @@ extern bool gaasfl;
 //load silicon band structure
 extern bool sifl;
 extern bool gefl;
+extern bool igzofl;
 
 
 extern double Max(double p1,double p2);
