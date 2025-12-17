@@ -12,10 +12,12 @@ class Band
     //CHARACTER*8 Typename[NumParType]
 public:
 
-    bool use_analytic_band = false;
-    // 调试标志：强制使用解析模式下的泊松求解器（即便粒子为全能带）
-    bool Flag_Debug_Force_Analytic_Poisson = true;
-    char Typename[NumParType][9];
+	    bool use_analytic_band = false;
+	    // [IGZO-MOD] IGZO 材料标记（由 mcmodel 同步）
+	    bool igzofl = false;
+	    // 调试标志：强制使用解析模式下的泊松求解器（即便粒子为全能带）
+	    bool Flag_Debug_Force_Analytic_Poisson = true;
+	    char Typename[NumParType][9];
 
     int flag_cellhit=0;
     //     number of scattering processes (electrons)

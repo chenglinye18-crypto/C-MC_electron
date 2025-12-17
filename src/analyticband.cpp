@@ -29,56 +29,93 @@ std::vector<double> Band::GenerateNonUniformTicks() {
     std::vector<double> ticks;
     std::vector<double> raw_ticks;
 
-    // 能谷位置 (归一化后约 1.7)
-    double k_valley_loc = 1.7; 
+    // ================== 参数配置 ==================
+    double k_max = 2.15;        // 覆盖布里渊区边界（单位：pi/a）
+    double step_coarse = 0.05;  // 粗网格步长 (背景)
 
-    // 范围限制
-    double k_min = -2.15;
-    double k_max = 2.15;
+    // ================== 分支逻辑 ==================
+    if (this->igzofl) {
+        // ##################################################
+        // #                 IGZO 模式                      #
+        // ##################################################
+        // 特点：单能谷，位于 Gamma 点 (0,0,0)
+        // 策略：只在 0 附近加密
 
-    // 区域步长设置
-    // Gamma 点附近（横向，mt=0.19，需极密）
-    double step_gamma = 0.004;
-    double width_gamma = 0.28;  // +/-0.06
+        double step_gamma = 0.002;  // 极细步长
+        double width_gamma = 0.15;  // 加密范围 +/- 0.15
 
-    // Valley 附近（纵向，ml~0.91，稍密）
-    double step_valley = 0.01;
-    double width_valley = 0.4; // +/-0.25
+        // 1. Gamma 点附近极细网格
+        for (double k = 0.5 * step_gamma; k <= width_gamma; k += step_gamma) {
+            raw_ticks.push_back(k);
+            raw_ticks.push_back(-k);
+        }
 
-    // 背景粗网格
-    double step_coarse = 0.2;
+        // 2. 背景粗网格 (全范围)
+        for (double k = 0.5 * step_coarse; k <= k_max; k += step_coarse) {
+            raw_ticks.push_back(k);
+            raw_ticks.push_back(-k);
+        }
 
-    // A. Gamma 点极细网格（对称、错位）
-    for (double k = 0.5 * step_gamma; k <= width_gamma; k += step_gamma) {
-        raw_ticks.push_back(k);
-        raw_ticks.push_back(-k);
+        if (mpi_rank == 0)
+            cout << "   [BandGrid] Generating IGZO Mesh (Gamma Focused, Step=0.002)" << endl;
+
+    } else {
+        // ##################################################
+        // #              Silicon (Si) 模式                 #
+        // ##################################################
+        // 特点：多能谷，分别位于 0 (Transverse) 和 1.7 (Longitudinal)
+
+        double k_valley_loc = 1.7;
+        double step_gamma = 0.002;  // Gamma 点附近
+        double width_gamma = 0.06;
+
+        double step_valley = 0.005; // Valley 附近
+        double width_valley = 0.25;
+
+        // 1. Gamma 点附近
+        for (double k = 0.5 * step_gamma; k <= width_gamma; k += step_gamma) {
+            raw_ticks.push_back(k);
+            raw_ticks.push_back(-k);
+        }
+
+        // 2. Valley 点 (+/- 1.7) 附近
+        for (double k = 0.5 * step_valley; k <= width_valley; k += step_valley) {
+            raw_ticks.push_back(k_valley_loc + k);
+            raw_ticks.push_back(k_valley_loc - k);
+            raw_ticks.push_back(-k_valley_loc + k);
+            raw_ticks.push_back(-k_valley_loc - k);
+        }
+
+        // 3. 背景粗网格
+        for (double k = 0.5 * step_coarse; k <= k_max; k += step_coarse) {
+            raw_ticks.push_back(k);
+            raw_ticks.push_back(-k);
+        }
     }
 
-    // B. Valley 点细网格（对称、错位）
-    for (double k = 0.5 * step_valley; k <= width_valley; k += step_valley) {
-        raw_ticks.push_back(k_valley_loc + k);
-        raw_ticks.push_back(k_valley_loc - k);
-        raw_ticks.push_back(-k_valley_loc + k);
-        raw_ticks.push_back(-k_valley_loc - k);
-    }
-
-    // C. 全局粗网格
-    for (double k = 0.5 * step_coarse; k <= k_max; k += step_coarse) {
-        raw_ticks.push_back(k);
-        raw_ticks.push_back(-k);
-    }
-
-    // 排序与过滤
+    // ================== 后处理 (排序去重) ==================
     std::sort(raw_ticks.begin(), raw_ticks.end());
+
     if (raw_ticks.empty()) return ticks;
 
-    double min_separation = 0.4 * step_gamma; // 以最细步长为基准
+    // 压入第一个点 (需在范围 -k_max 内)
+    if (raw_ticks[0] >= -k_max) {
+        ticks.push_back(raw_ticks[0]);
+    }
 
-    for (size_t i = 0; i < raw_ticks.size(); ++i) {
+    // 过滤过近的点 (防止粗细网格重叠导致极小步长)
+    double min_separation = 0.0008; // 0.4 * 0.002
+
+    for (size_t i = 1; i < raw_ticks.size(); ++i) {
         double curr = raw_ticks[i];
-        if (curr < k_min || curr > k_max) continue;
-        if (ticks.empty() || (curr - ticks.back() > min_separation)) {
+        if (curr < -k_max || curr > k_max) continue;
+
+        if (ticks.empty()) {
             ticks.push_back(curr);
+        } else {
+            if (curr - ticks.back() > min_separation) {
+                ticks.push_back(curr);
+            }
         }
     }
 
@@ -127,54 +164,73 @@ double CalculateAnalyticDOS_Real(double E_eV, double alpha_eV, double ml_rel, do
 void Band::InitAnalyticBand(double alpha_norm, double ml_rel, double mt_rel, string input_path) {
     cout << "Initializing Analytic Band (Kane's Model - Vector V)..." << endl;
 
+    // 说明（单位一致性）：
+    // - 全局 sia0 在 init_phpysical_parameter 中已做归一化：a_code = a_real / spr0
+    // - 本函数需要把 ticks(pi/a) 转为 1/m 时，使用 (PI/sia0)/spr0
+
     // 1. 物理常数 (SI)
-    double m0 = 9.10938356e-31; 
-    double hbar = 1.0545718e-34; 
-    double q = 1.60217662e-19;   
-    double a_lattice = 5.43e-10; 
+    const double m0 = M0_SI;
+    const double hbar = HBAR_SI;
+    const double q = Q_SI;
+    const double a_lattice_code = sia0;
 
-    // 参数
-    double alpha_real = 0.5; // 1/eV
-    double ml_kg = ml_rel * m0;
-    double mt_kg = mt_rel * m0;
+    // 2. 参数：IGZO 设为抛物线 (alpha=0)，Si 使用传入的 alpha_norm
+    const double alpha_real = this->igzofl ? 0.0 : (alpha_norm / eV0); // 1/eV
+    const double ml_kg = ml_rel * m0;
+    const double mt_kg = mt_rel * m0;
 
-    // 波谷配置
-    double K_valley_norm = 1.7; 
+    // 3. 文件后缀（IGZO 写 *_IGZO.txt，Si 保持原名）
+    const string file_suffix = this->igzofl ? "_IGZO" : "";
+
+    // ----------------------------------------------------------
+    // 4. 波谷配置
+    // ----------------------------------------------------------
+    const int num_valleys = this->igzofl ? 1 : 6;
+    const double K_valley_norm = this->igzofl ? 0.0 : 1.7;
     double valley_dirs[6][3] = {
         {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
     };
     int valley_l_axis[6] = {0, 0, 1, 1, 2, 2};
+    if (this->igzofl) {
+        valley_dirs[0][0] = 0.0; valley_dirs[0][1] = 0.0; valley_dirs[0][2] = 0.0;
+        valley_l_axis[0] = 0;
+    }
 
     // ----------------------------------------------------------
-    // 2. 生成 E-k-v 表
+    // 5. 生成 E-k-v 表
     // ----------------------------------------------------------
-    string ek_file = input_path + "/analytic_ek.txt";
+    const string ek_file = input_path + "/analytic_ek" + file_suffix + ".txt";
     ofstream out_ek(ek_file.c_str());
+    if (!out_ek.is_open()) {
+        cout << "Error: Cannot open " << ek_file << " for writing!" << endl;
+        exit(1);
+    }
     out_ek << "kx(pi/a) ky(pi/a) kz(pi/a) Energy(eV) vx(m/s) vy(m/s) vz(m/s)" << endl;
 
-    vector<double> ticks = GenerateNonUniformTicks();
-    int num_ticks = ticks.size();
-    cout << "  Generating E-k-v table with " << num_ticks << "^3 points..." << endl;
+    const vector<double> ticks = GenerateNonUniformTicks();
+    const int num_ticks = static_cast<int>(ticks.size());
+    cout << "  Generating E-k-v table (" << (this->igzofl ? "IGZO" : "Si") << ") with "
+         << num_ticks << "^3 points..." << endl;
 
-    double k_conversion = PI / a_lattice; // pi/a -> 1/m
-    double J_to_eV = 1.0 / q;
+    const double k_conversion = (PI / a_lattice_code) / spr0; // pi/a -> 1/m
+    const double J_to_eV = 1.0 / q;
 
     for (int i = 0; i < num_ticks; i++) {
         for (int j = 0; j < num_ticks; j++) {
             for (int k = 0; k < num_ticks; k++) {
-                double gx = ticks[i];
-                double gy = ticks[j];
-                double gz = ticks[k];
+                const double gx = ticks[i];
+                const double gy = ticks[j];
+                const double gz = ticks[k];
 
-                // 1) 最近波谷
+                // 1) 寻找最近波谷
                 int best_valley = 0;
                 double min_dist_sq = 1.0e99;
                 double dx_best = 0.0, dy_best = 0.0, dz_best = 0.0;
-                for (int v = 0; v < 6; v++) {
-                    double cx = valley_dirs[v][0] * K_valley_norm;
-                    double cy = valley_dirs[v][1] * K_valley_norm;
-                    double cz = valley_dirs[v][2] * K_valley_norm;
-                    double dist_sq = (gx-cx)*(gx-cx) + (gy-cy)*(gy-cy) + (gz-cz)*(gz-cz);
+                for (int v = 0; v < num_valleys; v++) {
+                    const double cx = valley_dirs[v][0] * K_valley_norm;
+                    const double cy = valley_dirs[v][1] * K_valley_norm;
+                    const double cz = valley_dirs[v][2] * K_valley_norm;
+                    const double dist_sq = (gx-cx)*(gx-cx) + (gy-cy)*(gy-cy) + (gz-cz)*(gz-cz);
                     if (dist_sq < min_dist_sq) {
                         min_dist_sq = dist_sq;
                         best_valley = v;
@@ -184,13 +240,13 @@ void Band::InitAnalyticBand(double alpha_norm, double ml_rel, double mt_rel, str
                     }
                 }
 
-                // 2) 局部坐标 (真实单位)
-                double dkx_real = dx_best * k_conversion;
-                double dky_real = dy_best * k_conversion;
-                double dkz_real = dz_best * k_conversion;
+                // 2) 局部坐标 (SI: 1/m)
+                const double dkx_real = dx_best * k_conversion;
+                const double dky_real = dy_best * k_conversion;
+                const double dkz_real = dz_best * k_conversion;
 
                 double kl = 0.0, kt1 = 0.0, kt2 = 0.0;
-                int l_axis = valley_l_axis[best_valley];
+                const int l_axis = valley_l_axis[best_valley];
                 if (l_axis == 0) { // X
                     kl = dkx_real; kt1 = dky_real; kt2 = dkz_real;
                 } else if (l_axis == 1) { // Y
@@ -199,23 +255,30 @@ void Band::InitAnalyticBand(double alpha_norm, double ml_rel, double mt_rel, str
                     kl = dkz_real; kt1 = dkx_real; kt2 = dky_real;
                 }
 
-                // 3) 能量
-                double Gamma_J = (hbar*hbar/2.0) * ( (kl*kl)/ml_kg + (kt1*kt1 + kt2*kt2)/mt_kg );
-                double Gamma_eV = Gamma_J * J_to_eV;
-                double E_val = (-1.0 + sqrt(1.0 + 4.0 * alpha_real * Gamma_eV)) / (2.0 * alpha_real);
+                // 3) 能量 (Kane 模型：Gamma(E)=E(1+alphaE)=hbar^2 k^2 / 2m)
+                const double Gamma_J = (hbar*hbar/2.0) * ( (kl*kl)/ml_kg + (kt1*kt1 + kt2*kt2)/mt_kg );
+                const double Gamma_eV = Gamma_J * J_to_eV;
 
-                // 4) 速度矢量
-                double v_prefactor = hbar / (1.0 + 2.0 * alpha_real * E_val);
-                double vl_vel  = v_prefactor * (kl  / ml_kg);
-                double vt1_vel = v_prefactor * (kt1 / mt_kg);
-                double vt2_vel = v_prefactor * (kt2 / mt_kg);
+                double E_val = 0.0;
+                if (alpha_real > 1e-12) {
+                    E_val = (-1.0 + std::sqrt(1.0 + 4.0 * alpha_real * Gamma_eV)) / (2.0 * alpha_real);
+                } else {
+                    E_val = Gamma_eV;
+                }
+
+                // 4) 速度矢量：v = (1/hbar) * dE/dk = (hbar * k / m) / (1 + 2 alpha E)
+                const double dGamma_dE = 1.0 + 2.0 * alpha_real * E_val;
+                const double v_prefactor = hbar / dGamma_dE;
+                const double vl_vel  = v_prefactor * (kl  / ml_kg);
+                const double vt1_vel = v_prefactor * (kt1 / mt_kg);
+                const double vt2_vel = v_prefactor * (kt2 / mt_kg);
 
                 double vx = 0.0, vy = 0.0, vz = 0.0;
-                if (l_axis == 0) {       // X Valley
+                if (l_axis == 0) {
                     vx = vl_vel; vy = vt1_vel; vz = vt2_vel;
-                } else if (l_axis == 1) { // Y Valley
+                } else if (l_axis == 1) {
                     vx = vt1_vel; vy = vl_vel; vz = vt2_vel;
-                } else {                 // Z Valley
+                } else {
                     vx = vt1_vel; vy = vt2_vel; vz = vl_vel;
                 }
 
@@ -228,45 +291,50 @@ void Band::InitAnalyticBand(double alpha_norm, double ml_rel, double mt_rel, str
     cout << "  E-k-v table generated: " << ek_file << endl;
 
     // ----------------------------------------------------------
-    // 3. 生成 DOS 表 (analytic_dos.txt) 并填充内部数组
+    // 6. 生成 DOS 表并填充内部数组
     // ----------------------------------------------------------
-    string dos_file = input_path + "/analytic_dos.txt";
+    const string dos_file = input_path + "/analytic_dos" + file_suffix + ".txt";
     ofstream out_dos(dos_file.c_str());
-    out_dos << "Energy(eV) DOS(1/eV/m^3) DOS_Norm(CodeUnits)" << endl;
-    
-    double max_E_eV = 7.5;
-    
-    double derived_eV0 = alpha_norm / 0.5; 
-    
-    for(int i=0; i<=MTAB; i++) {
-        dos[bandof[PELEC]][i] = 0.0;
-        sumdos[i][PELEC] = 0.0;
+    if (!out_dos.is_open()) {
+        cout << "Error: Cannot open " << dos_file << " for writing!" << endl;
+        exit(1);
     }
+    out_dos << "Energy(eV) DOS(1/eV/m^3) DOS_Norm(CodeUnits)" << endl;
+
+    const double max_E_eV = 7.5;
+    const int N_valley = num_valleys;
+
+    // Kane DOS：g(E) = Nv/(2pi^2) * (2 m_dos / hbar^2)^(3/2) * sqrt(gamma_J) * (1+2 alpha E)
+    const double md_dos = std::pow(ml_kg * mt_kg * mt_kg, 1.0/3.0);
+    const double dos_prefactor = (static_cast<double>(N_valley) / (2.0 * PI_SI * PI_SI))
+                               * std::pow(2.0 * md_dos / (HBAR_SI * HBAR_SI), 1.5);
 
     for (int itab = 0; itab <= MTAB; itab++) {
-        double E_norm = energy[itab]; 
-        
-        double E_eV = E_norm * eV0; 
-        
+        const double E_eV = energy[itab] * eV0;
         if (E_eV > max_E_eV) break;
-        
-        double dos_real = CalculateAnalyticDOS_Real(E_eV, alpha_real, ml_rel, mt_rel, 6);
-        
-        double dos_code = dos_real * eV0 * std::pow(spr0, 3.0);
-        
+
+        double dos_real = 0.0; // 1/(eV*m^3)
+        if (E_eV >= 0.0) {
+            const double gamma_J = (E_eV * Q_SI) * (1.0 + alpha_real * E_eV);
+            if (gamma_J >= 0.0) {
+                const double gamma_prime = 1.0 + 2.0 * alpha_real * E_eV;
+                const double dos_per_Joule = dos_prefactor * std::sqrt(gamma_J) * gamma_prime; // 1/(J*m^3)
+                dos_real = dos_per_Joule * Q_SI; // 1/(eV*m^3)
+            }
+        }
+
+        const double dos_code = dos_real * eV0 * std::pow(spr0, 3.0);
         dos[bandof[PELEC]][itab] = dos_code;
         sumdos[itab][PELEC] = dos_code;
-        
         out_dos << E_eV << " " << dos_real << " " << dos_code << endl;
     }
     out_dos.close();
-    
+
     DOSMAX[PELEC] = 0.0;
-    for(int itab=0; itab<=MTAB; itab++) {
-        if(sumdos[itab][PELEC] > DOSMAX[PELEC]) 
-            DOSMAX[PELEC] = sumdos[itab][PELEC];
+    for (int itab = 0; itab <= MTAB; itab++) {
+        if (sumdos[itab][PELEC] > DOSMAX[PELEC]) DOSMAX[PELEC] = sumdos[itab][PELEC];
     }
-    
+
     cout << "  DOS table generated: " << dos_file << endl;
 }
 
@@ -629,8 +697,8 @@ void Band::InitAxisLookupTable() {
     num_ticks_axis = static_cast<int>(ticks.size());
 
     // k 刻度（代码单位）
-    static const double a_lattice = 5.43e-10;
-    double conversion = (PI / a_lattice) * spr0;
+    double a_lattice = sia0;
+    double conversion = (PI / a_lattice);
     k_ticks_code.resize(num_ticks_axis);
     for (int i = 0; i < num_ticks_axis; ++i) {
         k_ticks_code[i] = ticks[i] * conversion;
@@ -646,8 +714,8 @@ void Band::InitAxisLookupTable() {
     }
     cout << "  [Info] K-Space Boundaries computed. Count: " << k_boundaries.size() << endl;
 
-    k_map_min = -2.1;
-    k_map_max = 2.1;
+    k_map_min = -2.15;
+    k_map_max = 2.15;
     double resolution = 0.001;
     k_map_scale = 1.0 / resolution;
 
@@ -780,9 +848,12 @@ void Band::AnalyticImpurityScatter(Particle* p, double DA, double Rho, double ep
     double ky_real = p->ky * k_conv_real;
     double kz_real = p->kz * k_conv_real;
 
-    double a_lattice = 5.43e-10;
-    double K_valley_mag = 0.85 * (2.0 * PI / a_lattice);
-    double K0_code = K_valley_mag * spr0;
+    double a_lattice = sia0;
+    double K0_code = 0.0;
+    if (!this->igzofl) {
+        double K_valley_mag = 0.85 * (2.0 * PI / a_lattice);
+        K0_code = K_valley_mag;
+    }
 
     double kl = 0.0, kt1 = 0.0, kt2 = 0.0;
     int axis = 0;
@@ -855,7 +926,7 @@ void Band::AnalyticImpurityScatter(Particle* p, double DA, double Rho, double ep
     }
 
     // 更新索引并查表速度
-    double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+    double to_pi = 1.0 / (PI / a_lattice);
     p->kx_idx = GetAxisIndex_O1(p->kx * to_pi);
     p->ky_idx = GetAxisIndex_O1(p->ky * to_pi);
     p->kz_idx = GetAxisIndex_O1(p->kz * to_pi);
@@ -868,9 +939,23 @@ void Band::AnalyticImpurityScatter(Particle* p, double DA, double Rho, double ep
 // -----------------------------------------------------------------------------
 
 void Band::InitValleyConfiguration() {
-    static const double a_lattice = 5.43e-10;
-    double K_real = 0.85 * (2.0 * PI / a_lattice);
-    valley_k0_norm = K_real * spr0;
+    if (this->igzofl) {
+        valley_k0_norm = 0.0;
+        for (int i = 0; i < 6; ++i) {
+            valley_centers[i][0] = 0.0;
+            valley_centers[i][1] = 0.0;
+            valley_centers[i][2] = 0.0;
+            valley_axis[i] = 0;
+        }
+        if (mpi_rank == 0) {
+            cout << "Initializing Valley Config (IGZO). Single Valley at Gamma (0,0,0)." << endl;
+        }
+        return;
+    }
+
+    double a_lattice = sia0;
+    double K_code = 0.85 * (2.0 * PI / a_lattice);
+    valley_k0_norm = K_code;
 
     cout << "Initializing Valley Config. K0_norm (Code Unit) = " << valley_k0_norm << endl;
 
@@ -997,8 +1082,8 @@ void Band::AnalyticPhononScatter(Particle* p) {
     p->kz = nkz;
 
     // 更新索引并查表
-    static const double a_lattice = 5.43e-10;
-    double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+    double a_lattice = sia0;
+    double to_pi = 1.0 / (PI / a_lattice);
     p->kx_idx = GetAxisIndex_O1(p->kx * to_pi);
     p->ky_idx = GetAxisIndex_O1(p->ky * to_pi);
     p->kz_idx = GetAxisIndex_O1(p->kz * to_pi);
@@ -1292,7 +1377,8 @@ void Band::ReadAnalyticData(string input_path) {
     cout << "Reading Analytic Band Data (Direct Lookup Mode)..." << endl;
 
     // 1) 读 DOS 表
-    string dos_file = input_path + "/analytic_dos.txt";
+    const string file_suffix = this->igzofl ? "_IGZO" : "";
+    string dos_file = input_path + "/analytic_dos" + file_suffix + ".txt";
     ifstream in_dos(dos_file.c_str());
     if (!in_dos) {
         cerr << "Error: Cannot open " << dos_file << endl;
@@ -1322,7 +1408,7 @@ void Band::ReadAnalyticData(string input_path) {
     cout << "  DOS table loaded successfully." << endl;
 
     // 2) 读 E-k-v 表，直接使用文件中给出的速度矢量
-    string ek_file = input_path + "/analytic_ek.txt";
+    string ek_file = input_path + "/analytic_ek" + file_suffix + ".txt";
     ifstream in_ek(ek_file.c_str());
     if (!in_ek) {
         cerr << "Error: Cannot open " << ek_file << endl;
@@ -1334,8 +1420,8 @@ void Band::ReadAnalyticData(string input_path) {
     analytic_k_grid.reserve(8000000);
 
     // 归一化转换
-    double a_lattice = 5.43e-10;
-    double k_pi_to_internal = (PI / a_lattice) * spr0; // k_internal = k_pi * (pi/a*spr0)
+    double a_lattice = sia0;
+    double k_pi_to_internal = (PI / a_lattice);        // k_internal = k_pi * (pi/a_code)
     double v_real_to_internal = 1.0 / velo0;           // v_internal = v_real / velo0
 
     double kx_pi, ky_pi, kz_pi, E_eV_in;

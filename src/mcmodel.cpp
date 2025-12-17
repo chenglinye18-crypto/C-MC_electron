@@ -53,6 +53,12 @@ void MeshQuantities::initialize(char * FileName){
   /*初始化一些物理参数*/
   // 初始化参数，并对部分物理参数做了去单位化的处理
   init_phpysical_parameter(FileName);
+
+  // [IGZO-MOD] 将全局材料标志同步给 Band（解析能带分支使用）
+  band.igzofl = igzofl;
+  if (mpi_rank == 0 && band.igzofl) {
+    cout << "  [Band] Material flag synced: IGZO Mode Active." << endl;
+  }
   
 
   /* 读入用户提供的，仿真所使用的模拟参数 */
@@ -4701,7 +4707,7 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
 
       // 1. 等效晶格常数 (用于 K 空间归一化)
       // 计算依据: Pi / a = 0.7557 A^-1 => a = 4.1577 Angstrom
-      sia0 = 9.6 * pow(3.0, 0.5) / 2.0 * 1.0e-10; // IGZO 晶格常数约为 4.16e-10 m
+      sia0 = 9.6 * pow(3.0, 0.5)  * 1.0e-10; // IGZO 晶格常数约为 4.16e-10 m
 
       // 2. 质量密度 (Mass Density)
       // 典型 IGZO 密度 ~ 6.1 g/cm^3

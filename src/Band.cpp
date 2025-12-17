@@ -4491,7 +4491,7 @@ void Band::IELEC(string path)
         InitValleyConfiguration();
         InitAxisLookupTable();
         BuildAnalyticLists(path);
-        //InitPhononSpectrum(path);
+        InitPhononSpectrum(path);
         BuildAnalyticScatteringTable();
 
         // ---------------------------------------------------------
