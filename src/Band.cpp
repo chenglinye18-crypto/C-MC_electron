@@ -4434,6 +4434,12 @@ void Band::IELEC(string path)
 
     mell=0.9116;                 //dval(31,linum)//
     melt=0.1946;                 //dval(32,linum)
+    if (igzofl) {
+        // IGZO: single Gamma valley, effective masses (relative to m0)
+        // Using user-provided values: mt=0.254, ml=0.268
+        mell = 0.268;
+        melt = 0.254;
+    }
     meld=pow((mell*melt*melt),(1.0/3.0));
 
     efoplow =2.47e10/dpc0;       //dval(33,linum)/dpc0

@@ -412,7 +412,7 @@ void Band::BuildAnalyticLists(string pathname) {
 }
 
 void Band::InitPhononSpectrum(string input_path) {
-    string filename = input_path + "/phonon_dispersion.txt";
+    string filename = input_path + (this->igzofl ? "/phonon_dispersion_IGZO.txt" : "/phonon_dispersion.txt");
     cout << "Reading Phonon Spectrum from: " << filename << endl;
 
     ifstream infile(filename.c_str());
@@ -461,7 +461,14 @@ void Band::InitPhononSpectrum(string input_path) {
         for(int i=0; i<4; ++i) ss >> w[i];
         for(int i=0; i<4; ++i) ss >> v[i];
 
-        if (ss.fail()) break;
+        // 允许存在非数值表头行（例如 "q omega..."），解析失败则跳过
+        if (ss.fail()) continue;
+        if (!std::isfinite(q_val)) continue;
+        bool ok = true;
+        for (int i = 0; i < 4; ++i) {
+            if (!std::isfinite(w[i]) || !std::isfinite(v[i])) { ok = false; break; }
+        }
+        if (!ok) continue;
 
         for(int i=0; i<4; ++i) {
             phonon.omega_table[i].push_back(w[i]);
@@ -543,6 +550,160 @@ double Band::GetOverlapFactor(double q, double Rs) {
 }
 
 void Band::BuildAnalyticScatteringTable() {
+    if (this->igzofl) {
+        cout << "Building Analytic Scattering Table (IGZO: 3 Processes)..." << endl;
+
+        const double T_lattice = T0;
+        const double rho = 6100.0;
+
+        const double E_ac_eV = 5.0; //形变势
+        const double D_LA = E_ac_eV * Q_SI;
+        const double D_TA = E_ac_eV * Q_SI;
+
+        const double ml = mell * M0_SI;
+        const double mt = melt * M0_SI;
+        const double md = std::pow(ml * mt * mt, 1.0/3.0);
+
+        const double a0 = phonon.a0;
+        const double Rs = (a0 > 0) ? a0 * std::pow(3.0/(16.0*PI_SI), 1.0/3.0) : 0.0;
+        const int nq_int = 400;
+        const double dq_int = (phonon.qmax > 0 && nq_int > 1) ? phonon.qmax / (nq_int - 1) : 0.0;
+
+        scpre = 3; // 0: acoustic, 1: optical abs, 2: optical em
+        const int band_idx = bandof[PELEC];
+
+        // 预清零
+        for (int iproc = 0; iproc < scpre; ++iproc) {
+            for (int ib = 0; ib < NBE; ++ib) {
+                scatte[iproc][ib][ib] = 0.0;
+                for (int itab = 0; itab <= MTAB; ++itab) {
+                    dose[iproc][ib][itab] = 0.0;
+                }
+            }
+        }
+        for (int ib = 0; ib < NBE; ++ib) {
+            for (int jb = 0; jb < NBE; ++jb) {
+                for (int itab = 0; itab <= MTAB; ++itab) {
+                    scattiie[ib][jb][itab] = 0.0;
+                }
+            }
+        }
+
+        for (int iproc = 0; iproc < scpre; ++iproc) {
+            scatte[iproc][band_idx][band_idx] = 1.0;
+        }
+
+        auto get_dos_si_from_table = [&](double E_eV_query) -> double {
+            if (E_eV_query < 0) return 0.0;
+            const double E_norm = E_eV_query / eV0;
+            int itab_q = static_cast<int>(((E_norm - emin) / dtable) + 0.5);
+            if (itab_q < 0) itab_q = 0;
+            if (itab_q > MTAB) itab_q = MTAB;
+            return sumdos[itab_q][PELEC] / (eV0 * std::pow(spr0, 3.0));
+        };
+
+        // 光学声子能量：取 LO 分支在 Gamma 的值；若过小则兜底为 60 meV
+        double omega_LO = 0.0;
+        if (phonon.nq_tab > 0) omega_LO = phonon.omega_table[PH_LO].front();
+        if (!(omega_LO > 0.0) && phonon.nq_tab > 1) omega_LO = phonon.omega_table[PH_LO][1];
+        if (!(omega_LO > 0.0) && phonon.nq_tab > 2) omega_LO = phonon.omega_table[PH_LO][phonon.nq_tab / 2];
+        double hw_LO_eV = (omega_LO > 0.0) ? (HBAR_SI * omega_LO / Q_SI) : 0.0;
+        if (hw_LO_eV < 0.02) {
+            hw_LO_eV = 0.06;
+            if (mpi_rank == 0) {
+                cout << "  [Warning] LO energy too low in table, using default 60 meV for IGZO." << endl;
+            }
+        }
+
+        const double w0_LO = hw_LO_eV * Q_SI / HBAR_SI;
+        const double Nq_LO = 1.0 / (std::exp(hw_LO_eV * Q_SI / (KB_SI * T_lattice)) - 1.0);
+        const double Dopt_eVm = 5e10;
+        const double D_Jm = Dopt_eVm * Q_SI;
+        const double C_LO = (PI_SI * D_Jm * D_Jm) / (2.0 * rho * w0_LO);
+
+        for (int itab = 0; itab <= MTAB; ++itab) {
+            const double E_eV = energy[itab] * eV0;
+            sumscatt[itab][band_idx] = 0.0;
+
+            // -------- Acoustic (elastic; phonon spectrum integral) --------
+            double Rate_AC_SI = 0.0;
+            const double alpha_real = 0.0; // IGZO: parabolic approx
+            double term = E_eV * (1.0 + alpha_real * E_eV);
+            if (term < 0.0) term = 0.0;
+            const double ks = (term > 0.0) ? std::sqrt(2.0 * md * term * Q_SI) / HBAR_SI : 0.0;
+
+            if (ks > 1e-30 && dq_int > 0 && phonon.nq_tab > 1) {
+                double integ_LA = 0.0;
+                double integ_TA = 0.0;
+
+                for (int iq = 0; iq < nq_int; ++iq) {
+                    const double q = iq * dq_int;
+                    if (q < 1e-12) continue;
+                    if (q > 2.0 * ks) continue;
+
+                    const double w_LA = GetPhononOmega(PH_LA, q);
+                    const double w_TA = GetPhononOmega(PH_TA, q);
+                    if (w_LA <= 0.0 || w_TA <= 0.0) continue;
+
+                    const double N_LA = 1.0 / (std::exp(HBAR_SI * w_LA / (KB_SI * T_lattice)) - 1.0);
+                    const double N_TA = 1.0 / (std::exp(HBAR_SI * w_TA / (KB_SI * T_lattice)) - 1.0);
+
+                    const double Iq = (Rs > 0) ? GetOverlapFactor(q, Rs) : 1.0;
+                    const double q3_I2 = q * q * q * Iq * Iq;
+
+                    const double hw_LA_eV = HBAR_SI * w_LA / Q_SI;
+                    const double hw_TA_eV = HBAR_SI * w_TA / Q_SI;
+
+                    integ_LA += (1.0 / w_LA) * N_LA * q3_I2;
+                    if (E_eV > hw_LA_eV) integ_LA += (1.0 / w_LA) * (N_LA + 1.0) * q3_I2;
+
+                    integ_TA += (1.0 / w_TA) * N_TA * q3_I2;
+                    if (E_eV > hw_TA_eV) integ_TA += (1.0 / w_TA) * (N_TA + 1.0) * q3_I2;
+                }
+
+                const double pre = md / (4.0 * PI_SI * rho * HBAR_SI * HBAR_SI * ks);
+                Rate_AC_SI = pre * (D_LA * D_LA * integ_LA + D_TA * D_TA * integ_TA) * dq_int;
+            }
+
+            dose[0][band_idx][itab] = Rate_AC_SI * time0;
+            sumscatt[itab][band_idx] += dose[0][band_idx][itab];
+
+            // -------- Optical (equivalent POP via zero-order optical DP) --------
+            const double g_abs = get_dos_si_from_table(E_eV + hw_LO_eV);
+            const double Rate_Abs_SI = C_LO * Nq_LO * g_abs;
+            dose[1][band_idx][itab] = Rate_Abs_SI * time0;
+            sumscatt[itab][band_idx] += dose[1][band_idx][itab];
+
+            double Rate_Em_SI = 0.0;
+            if (E_eV > hw_LO_eV) {
+                const double g_em = get_dos_si_from_table(E_eV - hw_LO_eV);
+                Rate_Em_SI = C_LO * (Nq_LO + 1.0) * g_em;
+            }
+            dose[2][band_idx][itab] = Rate_Em_SI * time0;
+            sumscatt[itab][band_idx] += dose[2][band_idx][itab];
+
+            scattiie[band_idx][band_idx][itab] = 0.0;
+        }
+
+        double max_gamma = 0.0;
+        for (int itab = 0; itab <= MTAB; ++itab) {
+            if (sumscatt[itab][band_idx] > max_gamma) {
+                max_gamma = sumscatt[itab][band_idx];
+            }
+        }
+
+        if (nt <= 0) nt = 1;
+        int fill_nt = nt;
+        if (fill_nt > MNTet) fill_nt = MNTet;
+        for(int it = 0; it < fill_nt; it++) {
+            gamtet[it] = max_gamma;
+        }
+        gamma[PELEC] = max_gamma;
+
+        cout << "  Analytic scattering table built (IGZO). Max Rate (norm) = " << max_gamma << endl;
+        return;
+    }
+
     cout << "Building Analytic Scattering Table (14 Processes)..." << endl;
 
     double T_lattice = T0;
@@ -940,15 +1101,13 @@ void Band::AnalyticImpurityScatter(Particle* p, double DA, double Rho, double ep
 
 void Band::InitValleyConfiguration() {
     if (this->igzofl) {
+        if (mpi_rank == 0) cout << "  [Band] Configuring Single Valley at Gamma (IGZO)..." << endl;
         valley_k0_norm = 0.0;
         for (int i = 0; i < 6; ++i) {
             valley_centers[i][0] = 0.0;
             valley_centers[i][1] = 0.0;
             valley_centers[i][2] = 0.0;
             valley_axis[i] = 0;
-        }
-        if (mpi_rank == 0) {
-            cout << "Initializing Valley Config (IGZO). Single Valley at Gamma (0,0,0)." << endl;
         }
         return;
     }
@@ -1015,24 +1174,54 @@ void Band::AnalyticPhononScatter(Particle* p) {
         0, 10.0,10.0, 19.0,19.0, 62.0,62.0, 19.0,19.0, 51.0,51.0, 57.0,57.0
     };
 
-    if (iscat == 0) {
-        delta_E_eV = 0.0;
+    if (this->igzofl) {
+        // IGZO: 0 acoustic (elastic), 1 optical absorption, 2 optical emission (intravalley only)
+        double omega_LO = 0.0;
+        if (phonon.nq_tab > 0) omega_LO = phonon.omega_table[PH_LO].front();
+        if (!(omega_LO > 0.0) && phonon.nq_tab > 1) omega_LO = phonon.omega_table[PH_LO][1];
+        if (!(omega_LO > 0.0) && phonon.nq_tab > 2) omega_LO = phonon.omega_table[PH_LO][phonon.nq_tab / 2];
+        double hw = (omega_LO > 0.0) ? (HBAR_SI * omega_LO / Q_SI) : 0.06;
+        if (hw < 0.02) hw = 0.06;
+
+        if (iscat == 0) {
+            delta_E_eV = 0.0;
+        } else if (iscat == 1) {
+            delta_E_eV = hw;
+        } else if (iscat == 2) {
+            delta_E_eV = -hw;
+            if (p->energy * eV0 < hw) {
+                analytic_self_scatter = true;
+                return;
+            }
+        } else {
+            analytic_self_scatter = true;
+            return;
+        }
         valley_rule = 0;
-    } else if (iscat >= 1 && iscat <= 6) {
-        double hw = E_ph_meV[iscat] * 1e-3;
-        delta_E_eV = (iscat % 2 != 0) ? hw : -hw;
-        valley_rule = 1;
-    } else if (iscat >= 7 && iscat <= 12) {
-        double hw = E_ph_meV[iscat] * 1e-3;
-        delta_E_eV = (iscat % 2 != 0) ? hw : -hw;
-        valley_rule = 2;
     } else {
-        analytic_self_scatter = true;
-        return;
+        if (iscat == 0) {
+            delta_E_eV = 0.0;
+            valley_rule = 0;
+        } else if (iscat >= 1 && iscat <= 6) {
+            double hw = E_ph_meV[iscat] * 1e-3;
+            delta_E_eV = (iscat % 2 != 0) ? hw : -hw;
+            valley_rule = 1;
+        } else if (iscat >= 7 && iscat <= 12) {
+            double hw = E_ph_meV[iscat] * 1e-3;
+            delta_E_eV = (iscat % 2 != 0) ? hw : -hw;
+            valley_rule = 2;
+        } else {
+            analytic_self_scatter = true;
+            return;
+        }
     }
 
     int current_valley = GetValleyID(p->kx, p->ky, p->kz);
     int target_valley = current_valley;
+    if (this->igzofl) {
+        current_valley = 0;
+        target_valley = 0;
+    }
     if (valley_rule == 1) {
         target_valley = current_valley ^ 1;
     } else if (valley_rule == 2) {
@@ -1384,6 +1573,7 @@ void Band::ReadAnalyticData(string input_path) {
         cerr << "Error: Cannot open " << dos_file << endl;
         exit(1);
     }
+    if (mpi_rank == 0) cout << "  [Band] Reading DOS data from: " << dos_file << endl;
     char buffer[256];
     in_dos.getline(buffer, 256); // 跳过表头
 
@@ -1408,10 +1598,11 @@ void Band::ReadAnalyticData(string input_path) {
     cout << "  DOS table loaded successfully." << endl;
 
     // 2) 读 E-k-v 表，直接使用文件中给出的速度矢量
-    string ek_file = input_path + "/analytic_ek" + file_suffix + ".txt";
-    ifstream in_ek(ek_file.c_str());
+    string filename = input_path + "/analytic_ek" + file_suffix + ".txt";
+    if (mpi_rank == 0) cout << "  [Band] Reading E-k data from: " << filename << endl;
+    ifstream in_ek(filename.c_str());
     if (!in_ek) {
-        cerr << "Error: Cannot open " << ek_file << endl;
+        cerr << "Error: Cannot open " << filename << endl;
         exit(1);
     }
     in_ek.getline(buffer, 256); // 跳过表头

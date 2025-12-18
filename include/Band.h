@@ -12,7 +12,7 @@ class Band
     //CHARACTER*8 Typename[NumParType]
 public:
 
-	    bool use_analytic_band = false;
+	    bool use_analytic_band = true;
 	    // [IGZO-MOD] IGZO 材料标记（由 mcmodel 同步）
 	    bool igzofl = false;
 	    // 调试标志：强制使用解析模式下的泊松求解器（即便粒子为全能带）

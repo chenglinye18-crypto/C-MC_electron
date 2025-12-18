@@ -59,6 +59,15 @@ void MeshQuantities::initialize(char * FileName){
   if (mpi_rank == 0 && band.igzofl) {
     cout << "  [Band] Material flag synced: IGZO Mode Active." << endl;
   }
+
+  // IGZO 模式目前只实现了解析能带建表/散射流程；
+  // 若继续走全能带分支会尝试读取 Si/GaAs 的全能带表（例如 zd.si.asc），导致 ETABF 读表报错。
+  if (band.igzofl) {
+    band.use_analytic_band = true;
+    if (mpi_rank == 0) {
+      cout << "  [Band] Forcing use_analytic_band = true (IGZO mode)." << endl;
+    }
+  }
   
 
   /* 读入用户提供的，仿真所使用的模拟参数 */
