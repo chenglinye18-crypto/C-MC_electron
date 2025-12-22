@@ -1048,6 +1048,18 @@ void Band::BuildAnalyticScatteringTable() {
     for(int i=0; i<nq_int; ++i) q_grid[i] = i * dq_int;
 
     // -------------------------------------------------------------------------
+    // Helper: 周期性对称延展（Zone Folding / triangle-wave folding）
+    // 将任意 q 映射回 [0, qmax]，用于查表 omega(q)
+    // -------------------------------------------------------------------------
+    auto fold_q_to_0_qmax = [&](double q, double qmax) -> double {
+        if (!(qmax > 0.0)) return q;
+        const double q_period = 2.0 * qmax;
+        double q_mod = std::fmod(q, q_period);
+        if (q_mod < 0.0) q_mod += q_period;
+        return qmax - std::abs(q_mod - qmax);
+    };
+
+    // -------------------------------------------------------------------------
     // IGZO 分支 (Acoustic 积分 + POP 查表)
     // -------------------------------------------------------------------------
     if (this->igzofl) {
@@ -1063,6 +1075,15 @@ void Band::BuildAnalyticScatteringTable() {
         const double mt = melt * M0_SI;
         const double md_SI = std::pow(ml * mt * mt, 1.0/3.0);
         const double alpha_val = 0.0; 
+
+        // ---------------------------------------------------------------------
+        // [IGZO-Amorphous] 非晶无序修正因子：低能区指数增强散射
+        // delta_E(E) = E_tail * (1 - E/E_max_corr), for E < E_max_corr
+        // S_disorder = exp(delta_E / kBT)
+        // ---------------------------------------------------------------------
+        const double E_tail_eV = 0.12;
+        const double E_max_corr_eV = 3.0;
+        const double kBT_eV = (KB_SI * T_lattice) / Q_SI;
 
         // Optical Parameters (POP)
         double omega_LO = 0.0;
@@ -1095,6 +1116,14 @@ void Band::BuildAnalyticScatteringTable() {
             const double E_eV = energy[itab] * eV0;
             sumscatt[itab][band_idx] = 0.0;
 
+            // [IGZO-Amorphous] 计算能量相关无序增强因子
+            double S_disorder = 1.0;
+            if (kBT_eV > 0.0 && E_eV < E_max_corr_eV) {
+                const double delta_E = E_tail_eV * (1.0 - (E_eV / E_max_corr_eV));
+                const double expo = delta_E / kBT_eV;
+                S_disorder = std::exp(std::min(expo, 700.0)); // 防止溢出；常规参数下 expo ~ O(1-10)
+            }
+
             // 1. Acoustic Scattering (使用周期性延展积分)
             double Rate_AC = 0.0;
             double term_k = E_eV * (1.0 + alpha_val * E_eV);
@@ -1109,9 +1138,7 @@ void Band::BuildAnalyticScatteringTable() {
                     double q = q_grid[iq];
                     if (q < 1e-12) continue;
 
-                    double q_period = 2.0 * phonon.qmax;
-                    double q_mod = std::fmod(q, q_period);
-                    double q_mapped = phonon.qmax - std::abs(q_mod - phonon.qmax);
+                    const double q_mapped = fold_q_to_0_qmax(q, phonon.qmax);
 
                     double w_LA = GetPhononOmega(PH_LA, q_mapped);
                     double w_TA = GetPhononOmega(PH_TA, q_mapped);
@@ -1144,13 +1171,13 @@ void Band::BuildAnalyticScatteringTable() {
                 Rate_AC = pre * (D_LA*D_LA * sum_integ_LA + D_TA*D_TA * sum_integ_TA) * dq_int;
             }
 
-            dose[0][band_idx][itab] = Rate_AC * time0;
+            dose[0][band_idx][itab] = (Rate_AC * S_disorder) * time0;
             sumscatt[itab][band_idx] += dose[0][band_idx][itab];
 
             // 2 & 3. POP Scattering (查表)
             double g_abs = get_dos_si_from_table(E_eV + hw_LO_eV);
             double Rate_Abs_SI = C_LO * Nq_LO * g_abs;
-            dose[1][band_idx][itab] = Rate_Abs_SI * time0;
+            dose[1][band_idx][itab] = (Rate_Abs_SI * S_disorder) * time0;
             sumscatt[itab][band_idx] += dose[1][band_idx][itab];
 
             double Rate_Em_SI = 0.0;
@@ -1158,7 +1185,7 @@ void Band::BuildAnalyticScatteringTable() {
                 double g_em = get_dos_si_from_table(E_eV - hw_LO_eV);
                 Rate_Em_SI = C_LO * (Nq_LO + 1.0) * g_em;
             }
-            dose[2][band_idx][itab] = Rate_Em_SI * time0;
+            dose[2][band_idx][itab] = (Rate_Em_SI * S_disorder) * time0;
             sumscatt[itab][band_idx] += dose[2][band_idx][itab];
         }
 
@@ -1217,9 +1244,7 @@ void Band::BuildAnalyticScatteringTable() {
                     double q = q_grid[iq];
                     if (q < 1e-12) continue;
 
-                    double q_period = 2.0 * phonon.qmax;
-                    double q_mod = std::fmod(q, q_period);
-                    double q_mapped = phonon.qmax - std::abs(q_mod - phonon.qmax);
+                    const double q_mapped = fold_q_to_0_qmax(q, phonon.qmax);
 
                     double w_LA = GetPhononOmega(PH_LA, q_mapped);
                     double w_TA = GetPhononOmega(PH_TA, q_mapped);
