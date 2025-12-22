@@ -4506,7 +4506,7 @@ void Band::IELEC(string path)
         cout << "  Initializing physical constants and Ni..." << endl;
 
         // Si/SiO2 导带势垒高度 (约 3.2 eV)
-        sioxbgo = 3.2 / eV0; 
+        sioxbgo = 3.2 /  eV0; 
 
         // 肖特基势垒降低系数 (沿用原有系数形式并做归一化)
         beta = 2.15e-5 / eV0 * sqrt(field0);
