@@ -498,12 +498,17 @@ public :
   void BuildAnalyticLists(string pathname);
   double GetKaneK_SI(double E_eV);
   double GetKaneDOS_SI(double E_eV);
-  double GetOverlapFactor(double q, double Rs);
-  double GetPhononOmega(int branch, double q);
-  std::vector<double> GenerateNonUniformTicks();
-  int GetAxisIndex(double k_norm);
-  void InitAxisLookupTable();
-  void InitValleyConfiguration();
+	  double GetOverlapFactor(double q, double Rs);
+	  double GetPhononOmega(int branch, double q);
+	  // Check whether a given q is allowed by combined energy + momentum conservation
+	  // via the |cos(theta)|<=1 constraint (MATLAB allowed_q_mask_ equivalent).
+	  // type: 1 = absorption (E' = E + hw), -1 = emission (E' = E - hw), 0 = elastic fallback
+	  bool CheckAllowedQ(double E_eV, double ks, double q, double hw_eV, int type,
+	                     double md_SI, double alpha_eV);
+	  std::vector<double> GenerateNonUniformTicks();
+	  int GetAxisIndex(double k_norm);
+	  void InitAxisLookupTable();
+	  void InitValleyConfiguration();
   int GetValleyID(double kx, double ky, double kz);
   int GetAxisIndex_O1(double k_val);
   double GetAnalyticGridTime(Particle* p, double Fx, double Fy, double Fz);
@@ -517,11 +522,14 @@ public :
   double analytic_vx = 0.0;
   double analytic_vy = 0.0;
   double analytic_vz = 0.0;
-  bool analytic_self_scatter = false;
+	  bool analytic_self_scatter = false;
+	  // Analytic band non-parabolicity used for table generation (1/eV).
+	  // IGZO: typically 0.0 (parabolic); Si analytic branch currently uses 0.5.
+	  double analytic_alpha_real = 0.0;
 
-  // ---------------- Phonon spectrum (table-driven) ---------------
-  struct PhononSpectrum {
-      double a0 = 0.0;
+	  // ---------------- Phonon spectrum (table-driven) ---------------
+	  struct PhononSpectrum {
+	      double a0 = 0.0;
       double qmax = 0.0;
       double dq = 0.0;
       int nq_tab = 0;

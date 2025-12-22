@@ -176,6 +176,7 @@ void Band::InitAnalyticBand(double alpha_norm, double ml_rel, double mt_rel, str
 
     // 2. 参数：IGZO 设为抛物线 (alpha=0)，Si 使用传入的 alpha_norm
     const double alpha_real = this->igzofl ? 0.0 : (alpha_norm / eV0); // 1/eV
+    this->analytic_alpha_real = alpha_real;
     const double ml_kg = ml_rel * m0;
     const double mt_kg = mt_rel * m0;
 
@@ -415,6 +416,12 @@ void Band::InitPhononSpectrum(string input_path) {
     string filename = input_path + (this->igzofl ? "/phonon_dispersion_IGZO.txt" : "/phonon_dispersion.txt");
     cout << "Reading Phonon Spectrum from: " << filename << endl;
 
+    // reset header-derived scalars (vectors cleared below)
+    phonon.a0 = 0.0;
+    phonon.qmax = 0.0;
+    phonon.dq = 0.0;
+    phonon.nq_tab = 0;
+
     ifstream infile(filename.c_str());
     if (!infile) {
         cerr << "Error: Cannot open phonon dispersion file!" << endl;
@@ -422,6 +429,7 @@ void Band::InitPhononSpectrum(string input_path) {
     }
 
     string line;
+    double max_q_found = 0.0;
     // 1. 跳过表头并解析 a0、qmax（如果表头提供）
     while (std::getline(infile, line)) {
         if (line.empty()) continue;
@@ -469,6 +477,7 @@ void Band::InitPhononSpectrum(string input_path) {
             if (!std::isfinite(w[i]) || !std::isfinite(v[i])) { ok = false; break; }
         }
         if (!ok) continue;
+        if (q_val > max_q_found) max_q_found = q_val;
 
         for(int i=0; i<4; ++i) {
             phonon.omega_table[i].push_back(w[i]);
@@ -480,6 +489,8 @@ void Band::InitPhononSpectrum(string input_path) {
     infile.close();
 
     phonon.nq_tab = phonon.omega_table[0].size();
+    // fallback: if header didn't provide qmax, infer from data
+    if (phonon.qmax <= 0.0 && max_q_found > 0.0) phonon.qmax = max_q_found;
     if (phonon.nq_tab > 1) {
         phonon.dq = phonon.qmax / (phonon.nq_tab - 1);
     }
@@ -549,6 +560,43 @@ double Band::GetOverlapFactor(double q, double Rs) {
     return 3.0 / (qRs * qRs * qRs) * (std::sin(qRs) - qRs * std::cos(qRs));
 }
 
+bool Band::CheckAllowedQ(double E_eV, double ks, double q, double hw_eV, int type,
+                         double md_SI, double alpha_eV) {
+    if (q < 1e-12) return false;
+    if (ks <= 0.0) return false;
+
+    const double hbar = HBAR_SI;
+    const double qJ_per_eV = Q_SI;
+
+    if (type == -1) { // emission: E' = E - hw
+        if (E_eV - hw_eV <= 0.0) return false;
+        const double num = md_SI * hw_eV * qJ_per_eV;
+        const double den = (hbar * hbar) * q * ks;
+        if (std::fabs(den) < 1e-60) return false;
+        const double non_par = 1.0 + alpha_eV * (2.0 * E_eV - hw_eV);
+        const double term = (num / den) * non_par;
+        const double cos_theta = q / (2.0 * ks) + term;
+        return std::fabs(cos_theta) <= 1.0;
+    }
+
+    if (type == 1) { // absorption: E' = E + hw
+        const double num = md_SI * hw_eV * qJ_per_eV;
+        const double den = (hbar * hbar) * q * ks;
+        if (std::fabs(den) < 1e-60) return false;
+        const double non_par = 1.0 + alpha_eV * (2.0 * E_eV + hw_eV);
+        const double term = (num / den) * non_par;
+        const double cos_theta = -q / (2.0 * ks) + term;
+        return std::fabs(cos_theta) <= 1.0;
+    }
+
+    if (type == 0) { // elastic fallback
+        return q <= 2.0 * ks;
+    }
+
+    return false;
+}
+
+/*
 void Band::BuildAnalyticScatteringTable() {
     if (this->igzofl) {
         cout << "Building Analytic Scattering Table (IGZO: 3 Processes)..." << endl;
@@ -593,8 +641,24 @@ void Band::BuildAnalyticScatteringTable() {
             scatte[iproc][band_idx][band_idx] = 1.0;
         }
 
+        const double alpha_real = this->analytic_alpha_real;
+        const double md_dos = std::pow(ml * mt * mt, 1.0/3.0);
+        const double dos_prefactor = (1.0 / (2.0 * PI_SI * PI_SI))
+                                   * std::pow(2.0 * md_dos / (HBAR_SI * HBAR_SI), 1.5); // 1/(J^(3/2) m^3)
+
         auto get_dos_si_from_table = [&](double E_eV_query) -> double {
             if (E_eV_query < 0) return 0.0;
+
+            // if beyond DOS table range, extrapolate using the same analytic DOS form
+            const double Emax_eV = energy[MTAB] * eV0;
+            if (E_eV_query > Emax_eV) {
+                const double gamma_J = (E_eV_query * Q_SI) * (1.0 + (alpha_real > 0.0 ? alpha_real * E_eV_query : 0.0));
+                if (gamma_J <= 0.0) return 0.0;
+                const double gamma_prime = 1.0 + 2.0 * (alpha_real > 0.0 ? alpha_real * E_eV_query : 0.0);
+                const double dos_per_J = dos_prefactor * std::sqrt(gamma_J) * gamma_prime; // 1/(J*m^3)
+                return dos_per_J * Q_SI; // 1/(eV*m^3)
+            }
+
             const double E_norm = E_eV_query / eV0;
             int itab_q = static_cast<int>(((E_norm - emin) / dtable) + 0.5);
             if (itab_q < 0) itab_q = 0;
@@ -627,7 +691,6 @@ void Band::BuildAnalyticScatteringTable() {
 
             // -------- Acoustic (elastic; phonon spectrum integral) --------
             double Rate_AC_SI = 0.0;
-            const double alpha_real = 0.0; // IGZO: parabolic approx
             double term = E_eV * (1.0 + alpha_real * E_eV);
             if (term < 0.0) term = 0.0;
             const double ks = (term > 0.0) ? std::sqrt(2.0 * md * term * Q_SI) / HBAR_SI : 0.0;
@@ -639,7 +702,6 @@ void Band::BuildAnalyticScatteringTable() {
                 for (int iq = 0; iq < nq_int; ++iq) {
                     const double q = iq * dq_int;
                     if (q < 1e-12) continue;
-                    if (q > 2.0 * ks) continue;
 
                     const double w_LA = GetPhononOmega(PH_LA, q);
                     const double w_TA = GetPhononOmega(PH_TA, q);
@@ -654,11 +716,21 @@ void Band::BuildAnalyticScatteringTable() {
                     const double hw_LA_eV = HBAR_SI * w_LA / Q_SI;
                     const double hw_TA_eV = HBAR_SI * w_TA / Q_SI;
 
-                    integ_LA += (1.0 / w_LA) * N_LA * q3_I2;
-                    if (E_eV > hw_LA_eV) integ_LA += (1.0 / w_LA) * (N_LA + 1.0) * q3_I2;
+                    // absorption
+                    if (CheckAllowedQ(E_eV, ks, q, hw_LA_eV, 1, md, alpha_real)) {
+                        integ_LA += (1.0 / w_LA) * N_LA * q3_I2;
+                    }
+                    // emission
+                    if (E_eV > hw_LA_eV && CheckAllowedQ(E_eV, ks, q, hw_LA_eV, -1, md, alpha_real)) {
+                        integ_LA += (1.0 / w_LA) * (N_LA + 1.0) * q3_I2;
+                    }
 
-                    integ_TA += (1.0 / w_TA) * N_TA * q3_I2;
-                    if (E_eV > hw_TA_eV) integ_TA += (1.0 / w_TA) * (N_TA + 1.0) * q3_I2;
+                    if (CheckAllowedQ(E_eV, ks, q, hw_TA_eV, 1, md, alpha_real)) {
+                        integ_TA += (1.0 / w_TA) * N_TA * q3_I2;
+                    }
+                    if (E_eV > hw_TA_eV && CheckAllowedQ(E_eV, ks, q, hw_TA_eV, -1, md, alpha_real)) {
+                        integ_TA += (1.0 / w_TA) * (N_TA + 1.0) * q3_I2;
+                    }
                 }
 
                 const double pre = md / (4.0 * PI_SI * rho * HBAR_SI * HBAR_SI * ks);
@@ -699,6 +771,42 @@ void Band::BuildAnalyticScatteringTable() {
             gamtet[it] = max_gamma;
         }
         gamma[PELEC] = max_gamma;
+
+        // =========================================================
+        // [DEBUG] 导出散射率与能量关系 (Export Scattering Rates)
+        // =========================================================
+        if (mpi_rank == 0) {
+            const string base_dir = pathname.empty() ? string("input") : pathname;
+            string dump_name = this->igzofl ? (base_dir + "/scattering_rates_IGZO.txt")
+                                            : (base_dir + "/scattering_rates_Si.txt");
+            ofstream out_scat(dump_name.c_str());
+            if (!out_scat.is_open()) {
+                cout << "  [Debug] Failed to open scattering dump file: " << dump_name << endl;
+            } else {
+                out_scat << "Energy(eV) Total(1/s)";
+                for(int i=0; i<scpre; i++) {
+                    out_scat << " Mech_" << i;
+                }
+                out_scat << endl;
+
+                for (int itab = 0; itab <= MTAB; ++itab) {
+                    double E_real = energy[itab] * eV0;
+                    if (E_real > 3.0) break;
+
+                    double rate_total = sumscatt[itab][band_idx] / time0;
+                    out_scat << E_real << " " << rate_total;
+
+                    for (int i = 0; i < scpre; ++i) {
+                        double rate_proc = dose[i][band_idx][itab] / time0;
+                        out_scat << " " << rate_proc;
+                    }
+                    out_scat << endl;
+                }
+                out_scat.close();
+                cout << "  [Debug] Scattering rates saved to: " << dump_name << endl;
+            }
+        }
+        // =========================================================
 
         cout << "  Analytic scattering table built (IGZO). Max Rate (norm) = " << max_gamma << endl;
         return;
@@ -765,11 +873,11 @@ void Band::BuildAnalyticScatteringTable() {
         if (ks > 1e-30 && dq_int > 0 && phonon.nq_tab > 1) {
             double integ_LA = 0.0;
             double integ_TA = 0.0;
+            const double alpha_si = 0.5;
 
             for (int iq = 0; iq < nq_int; ++iq) {
                 double q = iq * dq_int;
                 if (q < 1e-12) continue;
-                if (q > 2.0 * ks) continue;
 
                 double w_LA = GetPhononOmega(PH_LA, q);
                 double w_TA = GetPhononOmega(PH_TA, q);
@@ -785,11 +893,19 @@ void Band::BuildAnalyticScatteringTable() {
                 double hw_LA_eV = HBAR_SI * w_LA / Q_SI;
                 double hw_TA_eV = HBAR_SI * w_TA / Q_SI;
 
-                integ_LA += (1.0/w_LA) * N_LA * q3_I2;
-                if (E_eV > hw_LA_eV) integ_LA += (1.0/w_LA) * (N_LA + 1.0) * q3_I2;
+                if (CheckAllowedQ(E_eV, ks, q, hw_LA_eV, 1, md, alpha_si)) {
+                    integ_LA += (1.0/w_LA) * N_LA * q3_I2;
+                }
+                if (E_eV > hw_LA_eV && CheckAllowedQ(E_eV, ks, q, hw_LA_eV, -1, md, alpha_si)) {
+                    integ_LA += (1.0/w_LA) * (N_LA + 1.0) * q3_I2;
+                }
 
-                integ_TA += (1.0/w_TA) * N_TA * q3_I2;
-                if (E_eV > hw_TA_eV) integ_TA += (1.0/w_TA) * (N_TA + 1.0) * q3_I2;
+                if (CheckAllowedQ(E_eV, ks, q, hw_TA_eV, 1, md, alpha_si)) {
+                    integ_TA += (1.0/w_TA) * N_TA * q3_I2;
+                }
+                if (E_eV > hw_TA_eV && CheckAllowedQ(E_eV, ks, q, hw_TA_eV, -1, md, alpha_si)) {
+                    integ_TA += (1.0/w_TA) * (N_TA + 1.0) * q3_I2;
+                }
             }
             double pre = md / (4.0 * PI_SI * rho * HBAR_SI * HBAR_SI * ks);
             Rate_AC_SI = pre * (D_LA * D_LA * integ_LA + D_TA * D_TA * integ_TA) * dq_int;
@@ -842,8 +958,371 @@ void Band::BuildAnalyticScatteringTable() {
     }
     gamma[PELEC] = max_gamma;
 
+    // =========================================================
+    // [DEBUG] 导出散射率与能量关系 (Export Scattering Rates)
+    // =========================================================
+    if (mpi_rank == 0) {
+        const string base_dir = pathname.empty() ? string("input") : pathname;
+        string dump_name = this->igzofl ? (base_dir + "/scattering_rates_IGZO.txt")
+                                        : (base_dir + "/scattering_rates_Si.txt");
+        ofstream out_scat(dump_name.c_str());
+        if (!out_scat.is_open()) {
+            cout << "  [Debug] Failed to open scattering dump file: " << dump_name << endl;
+        } else {
+            out_scat << "Energy(eV) Total(1/s)";
+            for(int i=0; i<scpre; i++) {
+                out_scat << " Mech_" << i;
+            }
+            out_scat << endl;
+
+            for (int itab = 0; itab <= MTAB; ++itab) {
+                double E_real = energy[itab] * eV0;
+                if (E_real > 3.0) break;
+
+                double rate_total = sumscatt[itab][band_idx] / time0;
+                out_scat << E_real << " " << rate_total;
+
+                for (int i = 0; i < scpre; ++i) {
+                    double rate_proc = dose[i][band_idx][itab] / time0;
+                    out_scat << " " << rate_proc;
+                }
+                out_scat << endl;
+            }
+            out_scat.close();
+            cout << "  [Debug] Scattering rates saved to: " << dump_name << endl;
+        }
+    }
+    // =========================================================
+
     cout << "  Analytic scattering table built. Max Rate (norm) = " << max_gamma << endl;
 }
+*/
+
+
+void Band::BuildAnalyticScatteringTable() {
+    // =========================================================================
+    // Lambda: 从表中获取态密度 (用于 IGZO POP)
+    // =========================================================================
+    auto get_dos_si_from_table = [&](double E_eV_query) -> double {
+        if (E_eV_query < 0) return 0.0;
+        const double E_norm = E_eV_query / eV0;
+        int itab_q = static_cast<int>(((E_norm - emin) / dtable) + 0.5);
+        if (itab_q >= 0 && itab_q <= MTAB) {
+            return sumdos[itab_q][PELEC] / (eV0 * std::pow(spr0, 3.0));
+        } else {
+            return sumdos[MTAB][PELEC] / (eV0 * std::pow(spr0, 3.0));
+        }
+    };
+
+    // =========================================================================
+    // Lambda: 解析计算单谷 Kane DOS (用于 Si 谷间散射 - 复刻旧版逻辑)
+    // =========================================================================
+    auto calc_kane_dos_si_analytical = [&](double E_eV_val) -> double {
+        if (E_eV_val <= 0.0) return 0.0;
+        
+        // Si 参数 (硬编码，确保与旧版一致)
+        const double ml_si = 0.916 * M0_SI;
+        const double mt_si = 0.190 * M0_SI;
+        const double alpha_si = 0.5; // 1/eV
+        const double md_si = std::pow(ml_si * mt_si * mt_si, 1.0/3.0);
+        
+        double E_J = E_eV_val * Q_SI;
+        double alpha_J = alpha_si / Q_SI;
+        
+        // g(E) = sqrt(2) * md^1.5 / (pi^2 * hbar^3) * sqrt(E(1+aE)) * (1+2aE)
+        // 这里的单位是 J^-1 m^-3
+        double prefactor = std::sqrt(2.0) * std::pow(md_si, 1.5) / (PI_SI * PI_SI * std::pow(HBAR_SI, 3.0));
+        double gamma = E_J * (1.0 + alpha_J * E_J);
+        double dgamma = 1.0 + 2.0 * alpha_J * E_J;
+        
+        return prefactor * std::sqrt(gamma) * dgamma;
+    };
+
+    // -------------------------------------------------------------------------
+    // 准备积分网格 (用于声学支周期性延展积分)
+    // -------------------------------------------------------------------------
+    const double q_grid_limit = 6.0e10; 
+    const int nq_int = 1000; 
+    const double dq_int = q_grid_limit / (nq_int - 1);
+    vector<double> q_grid(nq_int);
+    for(int i=0; i<nq_int; ++i) q_grid[i] = i * dq_int;
+
+    // -------------------------------------------------------------------------
+    // IGZO 分支 (Acoustic 积分 + POP 查表)
+    // -------------------------------------------------------------------------
+    if (this->igzofl) {
+        cout << "Building Analytic Scattering Table (IGZO: Periodic Extension)..." << endl;
+
+        const double T_lattice = T0;
+        const double rho = 6100.0;
+        const double E_ac_eV = 5.0; 
+        const double D_LA = E_ac_eV * Q_SI; 
+        const double D_TA = E_ac_eV * Q_SI;
+
+        const double ml = mell * M0_SI;
+        const double mt = melt * M0_SI;
+        const double md_SI = std::pow(ml * mt * mt, 1.0/3.0);
+        const double alpha_val = 0.0; 
+
+        // Optical Parameters (POP)
+        double omega_LO = 0.0;
+        if (phonon.nq_tab > 0) omega_LO = phonon.omega_table[PH_LO].front();
+        if (omega_LO < 1e12 && phonon.nq_tab > 5) omega_LO = phonon.omega_table[PH_LO][5];
+        double hw_LO_eV = (omega_LO > 0.0) ? (HBAR_SI * omega_LO / Q_SI) : 0.06;
+        if (hw_LO_eV < 0.02) hw_LO_eV = 0.06;
+
+        const double w0_LO = hw_LO_eV * Q_SI / HBAR_SI;
+        const double Nq_LO = 1.0 / (std::exp(hw_LO_eV * Q_SI / (KB_SI * T_lattice)) - 1.0);
+        const double Dopt_eVm = 5e10; 
+        const double D_Jm = Dopt_eVm * Q_SI;
+        const double C_LO = (PI_SI * D_Jm * D_Jm) / (2.0 * rho * w0_LO);
+
+        scpre = 3; 
+        const int band_idx = bandof[PELEC];
+
+        // 清零
+        for (int iproc = 0; iproc < scpre; ++iproc) {
+            for (int ib = 0; ib < NBE; ++ib) {
+                scatte[iproc][ib][ib] = 0.0;
+                for (int itab = 0; itab <= MTAB; ++itab) dose[iproc][ib][itab] = 0.0;
+            }
+            scatte[iproc][band_idx][band_idx] = 1.0;
+        }
+        for (int ib = 0; ib < NBE; ++ib) for (int jb = 0; jb < NBE; ++jb) for (int itab = 0; itab <= MTAB; ++itab) scattiie[ib][jb][itab] = 0.0;
+
+        // --- 能量循环 ---
+        for (int itab = 0; itab <= MTAB; ++itab) {
+            const double E_eV = energy[itab] * eV0;
+            sumscatt[itab][band_idx] = 0.0;
+
+            // 1. Acoustic Scattering (使用周期性延展积分)
+            double Rate_AC = 0.0;
+            double term_k = E_eV * (1.0 + alpha_val * E_eV);
+            if (term_k < 0) term_k = 0.0;
+            double ks = std::sqrt(2.0 * md_SI * term_k * Q_SI) / HBAR_SI;
+
+            if (ks > 1e-10) {
+                double sum_integ_LA = 0.0;
+                double sum_integ_TA = 0.0;
+
+                for (int iq = 0; iq < nq_int; ++iq) {
+                    double q = q_grid[iq];
+                    if (q < 1e-12) continue;
+
+                    double q_period = 2.0 * phonon.qmax;
+                    double q_mod = std::fmod(q, q_period);
+                    double q_mapped = phonon.qmax - std::abs(q_mod - phonon.qmax);
+
+                    double w_LA = GetPhononOmega(PH_LA, q_mapped);
+                    double w_TA = GetPhononOmega(PH_TA, q_mapped);
+                    if (w_LA <= 1e-10) w_LA = 1e10; 
+                    if (w_TA <= 1e-10) w_TA = 1e10;
+
+                    double hw_LA = HBAR_SI * w_LA / Q_SI; 
+                    double hw_TA = HBAR_SI * w_TA / Q_SI; 
+
+                    double N_LA = 1.0 / (std::exp(w_LA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
+                    double N_TA = 1.0 / (std::exp(w_TA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
+
+                    double base_term = q * q * q; 
+                    
+                    if (CheckAllowedQ(E_eV, ks, q, hw_LA, -1, md_SI, alpha_val)) { 
+                        if (E_eV > hw_LA) sum_integ_LA += (1.0/w_LA) * (N_LA + 1.0) * base_term;
+                    }
+                    if (CheckAllowedQ(E_eV, ks, q, hw_LA, 1, md_SI, alpha_val)) { 
+                        sum_integ_LA += (1.0/w_LA) * N_LA * base_term;
+                    }
+                    if (CheckAllowedQ(E_eV, ks, q, hw_TA, -1, md_SI, alpha_val)) {
+                        if (E_eV > hw_TA) sum_integ_TA += (1.0/w_TA) * (N_TA + 1.0) * base_term;
+                    }
+                    if (CheckAllowedQ(E_eV, ks, q, hw_TA, 1, md_SI, alpha_val)) {
+                        sum_integ_TA += (1.0/w_TA) * N_TA * base_term;
+                    }
+                }
+                
+                double pre = md_SI / (4.0 * PI_SI * rho * HBAR_SI * HBAR_SI * ks);
+                Rate_AC = pre * (D_LA*D_LA * sum_integ_LA + D_TA*D_TA * sum_integ_TA) * dq_int;
+            }
+
+            dose[0][band_idx][itab] = Rate_AC * time0;
+            sumscatt[itab][band_idx] += dose[0][band_idx][itab];
+
+            // 2 & 3. POP Scattering (查表)
+            double g_abs = get_dos_si_from_table(E_eV + hw_LO_eV);
+            double Rate_Abs_SI = C_LO * Nq_LO * g_abs;
+            dose[1][band_idx][itab] = Rate_Abs_SI * time0;
+            sumscatt[itab][band_idx] += dose[1][band_idx][itab];
+
+            double Rate_Em_SI = 0.0;
+            if (E_eV > hw_LO_eV) {
+                double g_em = get_dos_si_from_table(E_eV - hw_LO_eV);
+                Rate_Em_SI = C_LO * (Nq_LO + 1.0) * g_em;
+            }
+            dose[2][band_idx][itab] = Rate_Em_SI * time0;
+            sumscatt[itab][band_idx] += dose[2][band_idx][itab];
+        }
+
+    } else {
+        // ---------------------------------------------------------------------
+        // Silicon 分支
+        // ---------------------------------------------------------------------
+        cout << "Building Analytic Scattering Table (Si: Periodic Acoustic + Analytical Intervalley)..." << endl;
+
+        double T_lattice = T0;
+        double rho = 2330.0;
+        double D_LA_J = 6.39 * Q_SI;
+        double D_TA_J = 3.01 * Q_SI;
+        
+        double ml = 0.916 * M0_SI;
+        double mt = 0.190 * M0_SI;
+        double md_SI = std::pow(ml * mt * mt, 1.0/3.0);
+        double alpha_val = 0.5;
+
+        double a0 = phonon.a0;
+        double Rs = (a0 > 0) ? a0 * std::pow(3.0/(16.0*PI_SI), 1.0/3.0) : 0.0;
+
+        struct IvParam { double E_meV; double D_1e8; int Z; };
+        IvParam iv_params[6] = {
+            {10.0, 0.3, 1}, {19.0, 1.5, 1}, {62.0, 6.0, 1},
+            {19.0, 0.5, 4}, {51.0, 3.5, 4}, {57.0, 1.5, 4}
+        };
+
+        scpre = 14; 
+        int band_idx = bandof[PELEC];
+
+        // 清零
+        for (int iproc = 0; iproc < scpre; ++iproc) {
+            for (int ib = 0; ib < NBE; ++ib) {
+                scatte[iproc][ib][ib] = 0.0;
+                for (int itab = 0; itab <= MTAB; ++itab) dose[iproc][ib][itab] = 0.0;
+            }
+            scatte[iproc][band_idx][band_idx] = 1.0;
+        }
+        for (int ib = 0; ib < NBE; ++ib) for (int jb = 0; jb < NBE; ++jb) for (int itab = 0; itab <= MTAB; ++itab) scattiie[ib][jb][itab] = 0.0;
+
+        for (int itab = 0; itab <= MTAB; ++itab) {
+            double E_norm = energy[itab];
+            double E_eV = E_norm * eV0;
+            sumscatt[itab][band_idx] = 0.0;
+            
+            // 1. Acoustic: Periodic Extension
+            double Rate_AC = 0.0;
+            double term_k = E_eV * (1.0 + alpha_val * E_eV);
+            if (term_k < 0) term_k = 0.0;
+            double ks = std::sqrt(2.0 * md_SI * term_k * Q_SI) / HBAR_SI;
+
+            if (ks > 1e-10) {
+                double sum_LA = 0.0, sum_TA = 0.0;
+                for (int iq = 0; iq < nq_int; ++iq) {
+                    double q = q_grid[iq];
+                    if (q < 1e-12) continue;
+
+                    double q_period = 2.0 * phonon.qmax;
+                    double q_mod = std::fmod(q, q_period);
+                    double q_mapped = phonon.qmax - std::abs(q_mod - phonon.qmax);
+
+                    double w_LA = GetPhononOmega(PH_LA, q_mapped);
+                    double w_TA = GetPhononOmega(PH_TA, q_mapped);
+                    if (w_LA <= 1e-10) w_LA = 1e10; 
+                    if (w_TA <= 1e-10) w_TA = 1e10;
+
+                    double hw_LA = HBAR_SI * w_LA / Q_SI;
+                    double hw_TA = HBAR_SI * w_TA / Q_SI;
+
+                    double N_LA = 1.0 / (std::exp(w_LA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
+                    double N_TA = 1.0 / (std::exp(w_TA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
+
+                    double Iq = (Rs > 0) ? GetOverlapFactor(q, Rs) : 1.0;
+                    double base_term = (Iq * Iq) * (q * q * q);
+
+                    // LA
+                    if (CheckAllowedQ(E_eV, ks, q, hw_LA, -1, md_SI, alpha_val)) {
+                        if (E_eV > hw_LA) sum_LA += (1.0/w_LA) * (N_LA + 1.0) * base_term;
+                    }
+                    if (CheckAllowedQ(E_eV, ks, q, hw_LA, 1, md_SI, alpha_val)) {
+                        sum_LA += (1.0/w_LA) * N_LA * base_term;
+                    }
+                    // TA
+                    if (CheckAllowedQ(E_eV, ks, q, hw_TA, -1, md_SI, alpha_val)) {
+                        if (E_eV > hw_TA) sum_TA += (1.0/w_TA) * (N_TA + 1.0) * base_term;
+                    }
+                    if (CheckAllowedQ(E_eV, ks, q, hw_TA, 1, md_SI, alpha_val)) {
+                        sum_TA += (1.0/w_TA) * N_TA * base_term;
+                    }
+                }
+                double pre = md_SI / (4.0 * PI_SI * rho * HBAR_SI * HBAR_SI * ks);
+                Rate_AC = pre * (D_LA_J*D_LA_J * sum_LA + D_TA_J*D_TA_J * sum_TA) * dq_int;
+            }
+
+            dose[0][band_idx][itab] = Rate_AC * time0;
+            sumscatt[itab][band_idx] += dose[0][band_idx][itab];
+
+            // 2. Intervalley Scattering (Fix: 使用 calc_kane_dos_si_analytical 替代查表)
+            for (int i = 0; i < 6; ++i) {
+                double hw_eV = iv_params[i].E_meV * 1e-3;
+                double w0 = hw_eV * Q_SI / HBAR_SI;
+                double Nq = 1.0 / (std::exp(hw_eV * Q_SI / (KB_SI * T_lattice)) - 1.0);
+                double D_Jm = iv_params[i].D_1e8 * 1e10 * Q_SI;
+                double C = (PI_SI * D_Jm * D_Jm * iv_params[i].Z) / (2.0 * rho * w0);
+
+                int idx_abs = 1 + 2 * i;
+                // [FIX] 计算单谷 DOS
+                double g_ab = calc_kane_dos_si_analytical(E_eV + hw_eV); 
+                double Rate_Abs_SI = C * Nq * g_ab;
+                dose[idx_abs][band_idx][itab] = Rate_Abs_SI * time0;
+                sumscatt[itab][band_idx] += dose[idx_abs][band_idx][itab];
+
+                int idx_em = 2 + 2 * i;
+                double Rate_Em_SI = 0.0;
+                if (E_eV > hw_eV) {
+                    // [FIX] 计算单谷 DOS
+                    double g_em = calc_kane_dos_si_analytical(E_eV - hw_eV);
+                    Rate_Em_SI = C * (Nq + 1.0) * g_em;
+                }
+                dose[idx_em][band_idx][itab] = Rate_Em_SI * time0;
+                sumscatt[itab][band_idx] += dose[idx_em][band_idx][itab];
+            }
+            
+            scattiie[band_idx][band_idx][itab] = 0.0; 
+        }
+    }
+
+    // 后处理
+    double max_gamma = 0.0;
+    for (int itab = 0; itab <= MTAB; ++itab) {
+        if (sumscatt[itab][bandof[PELEC]] > max_gamma) {
+            max_gamma = sumscatt[itab][bandof[PELEC]];
+        }
+    }
+    if (nt <= 0) nt = 1;
+    int fill_nt = (nt > MNTet) ? MNTet : nt;
+    for(int it = 0; it < fill_nt; it++) gamtet[it] = max_gamma;
+    gamma[PELEC] = max_gamma;
+
+    // [DEBUG] 导出
+    if (mpi_rank == 0) {
+        const string base_dir = pathname.empty() ? string("input") : pathname;
+        string dump_name = this->igzofl ? (base_dir + "/scattering_rates_IGZO.txt")
+                                        : (base_dir + "/scattering_rates_Si.txt");
+        ofstream out_scat(dump_name.c_str());
+        if (out_scat.is_open()) {
+            out_scat << "Energy(eV) Total(1/s)";
+            for(int i=0; i<scpre; i++) out_scat << " Mech_" << i;
+            out_scat << endl;
+            for (int itab = 0; itab <= MTAB; ++itab) {
+                double E_real = energy[itab] * eV0;
+                if (E_real > 3.0) break;
+                out_scat << E_real << " " << sumscatt[itab][bandof[PELEC]] / time0;
+                for (int i = 0; i < scpre; ++i) out_scat << " " << dose[i][bandof[PELEC]][itab] / time0;
+                out_scat << endl;
+            }
+            out_scat.close();
+        }
+    }
+    cout << "  Analytic scattering table built. Max Rate (norm) = " << max_gamma << endl;
+}
+
+
 
 int Band::GetAxisIndex(double k_norm) {
     int idx = static_cast<int>((k_norm + 2.0) / 0.01 + 0.5);
