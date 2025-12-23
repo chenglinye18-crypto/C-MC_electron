@@ -1039,13 +1039,14 @@ void Band::BuildAnalyticScatteringTable() {
     };
 
     // -------------------------------------------------------------------------
-    // 准备积分网格 (用于声学支周期性延展积分)
+    // 动态积分上限（Extended Zone Integration）
+    // 说明：高能时允许的动量转移窗口随 k 增大（~2k）；用固定 q_grid_limit 可能导致高能散射率非物理下降。
+    // 这里用能量表最大值 E_max_table 动态估计 2*k_max 作为积分上限（分别在 IGZO / Si 分支中计算）。
     // -------------------------------------------------------------------------
-    const double q_grid_limit = 6.0e10; 
-    const int nq_int = 1000; 
-    const double dq_int = q_grid_limit / (nq_int - 1);
-    vector<double> q_grid(nq_int);
-    for(int i=0; i<nq_int; ++i) q_grid[i] = i * dq_int;
+    const double E_max_table = energy[MTAB] * eV0;
+    int nq_int = 0;
+    double dq_int = 0.0;
+    vector<double> q_grid;
 
     // -------------------------------------------------------------------------
     // Helper: 周期性对称延展（Zone Folding / triangle-wave folding）
@@ -1081,13 +1082,27 @@ void Band::BuildAnalyticScatteringTable() {
         // delta_E(E) = E_tail * (1 - E/E_max_corr), for E < E_max_corr
         // S_disorder = exp(delta_E / kBT)
         // ---------------------------------------------------------------------
-        const double E_tail_eV = 0.12;
+        const double E_tail_eV = 0.18;
         const double E_max_corr_eV = 3.0;
         const double kBT_eV = (KB_SI * T_lattice) / Q_SI;
 
         // Optical Parameters (NPOP via effective optical deformation potential)
-        const double Dopt_eVm = 5e10;
+        const double Dopt_eVm = 5e9;
         const double D_LO = Dopt_eVm * Q_SI; // J/m
+
+        // overlap factor radius Rs (same definition as Si branch)
+        const double a0 = phonon.a0;
+        const double Rs = (a0 > 0) ? a0 * std::pow(3.0/(16.0*PI_SI), 1.0/3.0) : 0.0;
+
+        // [动态 q 网格] q_grid_limit = 2*k_max(E_max_table)
+        {
+            const double k_max_val = std::sqrt(2.0 * md_SI * std::max(E_max_table, 0.0) * Q_SI) / HBAR_SI;
+            const double q_grid_limit = 2.0 * k_max_val;
+            nq_int = 5000;
+            dq_int = (nq_int > 1) ? (q_grid_limit / (nq_int - 1)) : 0.0;
+            q_grid.assign(nq_int, 0.0);
+            for (int i = 0; i < nq_int; ++i) q_grid[i] = i * dq_int;
+        }
 
         scpre = 3; 
         const int band_idx = bandof[PELEC];
@@ -1124,7 +1139,7 @@ void Band::BuildAnalyticScatteringTable() {
             if (term_k < 0) term_k = 0.0;
             double ks = std::sqrt(2.0 * md_SI * term_k * Q_SI) / HBAR_SI;
 
-            if (ks > 1e-10) {
+            if (ks > 1e-10 && dq_int > 0.0) {
                 double sum_integ_LA = 0.0;
                 double sum_integ_TA = 0.0;
                 double sum_LO_abs = 0.0;
@@ -1157,8 +1172,10 @@ void Band::BuildAnalyticScatteringTable() {
                     double N_TA = 1.0 / (std::exp(w_TA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
                     double N_LO = 1.0 / (std::exp(w_LO * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
 
-                    const double base_term = q_mapped * q_mapped * q_mapped;
-                    const double base_opt = q_strength; // optical strength term uses q_mapped (mapped into 1st BZ)
+                    const double Iq = (Rs > 0) ? GetOverlapFactor(q_strength, Rs) : 1.0;
+                    const double Iq2 = Iq * Iq;
+                    const double base_term = Iq2 * (q_mapped * q_mapped * q_mapped);
+                    const double base_opt = Iq2 * q_strength; // optical strength term uses q_mapped (mapped into 1st BZ)
                     
                     if (CheckAllowedQ(E_eV, ks, q, hw_LA, -1, md_SI, alpha_val)) { 
                         if (E_eV > hw_LA) sum_integ_LA += (1.0/w_LA) * (N_LA + 1.0) * base_term;
@@ -1213,6 +1230,17 @@ void Band::BuildAnalyticScatteringTable() {
 
         double a0 = phonon.a0;
         double Rs = (a0 > 0) ? a0 * std::pow(3.0/(16.0*PI_SI), 1.0/3.0) : 0.0;
+
+        // [动态 q 网格] q_grid_limit = 2*k_max(E_max_table) with Kane non-parabolicity
+        {
+            const double Emax = std::max(E_max_table, 0.0);
+            const double k_max_val = std::sqrt(2.0 * md_SI * Emax * (1.0 + alpha_val * Emax) * Q_SI) / HBAR_SI;
+            const double q_grid_limit = 2.0 * k_max_val;
+            nq_int = 2000;
+            dq_int = (nq_int > 1) ? (q_grid_limit / (nq_int - 1)) : 0.0;
+            q_grid.assign(nq_int, 0.0);
+            for (int i = 0; i < nq_int; ++i) q_grid[i] = i * dq_int;
+        }
 
         struct IvParam { double E_meV; double D_1e8; int Z; };
         IvParam iv_params[6] = {
