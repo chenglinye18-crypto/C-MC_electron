@@ -1056,8 +1056,9 @@ void Band::BuildAnalyticScatteringTable() {
         if (!(qmax > 0.0)) return q;
         const double q_period = 2.0 * qmax;
         double q_mod = std::fmod(q, q_period);
-        if (q_mod < 0.0) q_mod += q_period;
-        return qmax - std::abs(q_mod - qmax);
+        //if (q_mod < 0.0) q_mod += q_period;
+        //return qmax - std::abs(q_mod - qmax);
+        return q_mod;
     };
 
     // -------------------------------------------------------------------------
@@ -1083,12 +1084,12 @@ void Band::BuildAnalyticScatteringTable() {
         // S_disorder = exp(delta_E / kBT)
         // ---------------------------------------------------------------------
         const double E_tail_eV = 0.18;
-        const double E_max_corr_eV = 3.0;
+        const double E_max_corr_eV = 10.0;
         const double kBT_eV = (KB_SI * T_lattice) / Q_SI;
 
         // Optical Parameters (NPOP via effective optical deformation potential)
-        const double Dopt_eVm = 5e9;
-        const double D_LO = Dopt_eVm * Q_SI; // J/m
+        const double Dopt_LO = 5e5 * Q_SI; // J/m
+        const double Dopt_TO = 5e5 * Q_SI; // J/m
 
         // overlap factor radius Rs (same definition as Si branch)
         const double a0 = phonon.a0;
@@ -1104,7 +1105,7 @@ void Band::BuildAnalyticScatteringTable() {
             for (int i = 0; i < nq_int; ++i) q_grid[i] = i * dq_int;
         }
 
-        scpre = 3; 
+        scpre = 5; // 0:AC, 1:LO_Abs, 2:LO_Em, 3:TO_Abs, 4:TO_Em
         const int band_idx = bandof[PELEC];
 
         // 清零
@@ -1124,6 +1125,8 @@ void Band::BuildAnalyticScatteringTable() {
             dose[0][band_idx][itab] = 0.0;
             dose[1][band_idx][itab] = 0.0;
             dose[2][band_idx][itab] = 0.0;
+            dose[3][band_idx][itab] = 0.0;
+            dose[4][band_idx][itab] = 0.0;
 
             // [IGZO-Amorphous] 计算能量相关无序增强因子
             double S_disorder = 1.0;
@@ -1144,6 +1147,8 @@ void Band::BuildAnalyticScatteringTable() {
                 double sum_integ_TA = 0.0;
                 double sum_LO_abs = 0.0;
                 double sum_LO_ems = 0.0;
+                double sum_TO_abs = 0.0;
+                double sum_TO_ems = 0.0;
 
                 for (int iq = 0; iq < nq_int; ++iq) {
                     double q = q_grid[iq];
@@ -1156,26 +1161,29 @@ void Band::BuildAnalyticScatteringTable() {
                     double w_LA = GetPhononOmega(PH_LA, q_strength);
                     double w_TA = GetPhononOmega(PH_TA, q_strength);
                     double w_LO = GetPhononOmega(PH_LO, q_strength);
+                    double w_TO = GetPhononOmega(PH_TO, q_strength);
                     if (!(w_LA > 0.0) && phonon.nq_tab > 1 && phonon.dq > 0.0 && phonon.omega_table[PH_LA].size() > 1) {
                         w_LA = (phonon.omega_table[PH_LA][1] / phonon.dq) * q_strength;
                     }
                     if (!(w_TA > 0.0) && phonon.nq_tab > 1 && phonon.dq > 0.0 && phonon.omega_table[PH_TA].size() > 1) {
                         w_TA = (phonon.omega_table[PH_TA][1] / phonon.dq) * q_strength;
                     }
-                    if (!(w_LA > 0.0) || !(w_TA > 0.0) || !(w_LO > 0.0)) continue;
+                    if (!(w_LA > 0.0) || !(w_TA > 0.0) || !(w_LO > 0.0) || !(w_TO > 0.0)) continue;
 
                     double hw_LA = HBAR_SI * w_LA / Q_SI; 
                     double hw_TA = HBAR_SI * w_TA / Q_SI; 
                     double hw_LO = HBAR_SI * w_LO / Q_SI;
+                    double hw_TO = HBAR_SI * w_TO / Q_SI;
 
                     double N_LA = 1.0 / (std::exp(w_LA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
                     double N_TA = 1.0 / (std::exp(w_TA * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
                     double N_LO = 1.0 / (std::exp(w_LO * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
+                    double N_TO = 1.0 / (std::exp(w_TO * HBAR_SI / (KB_SI * T_lattice)) - 1.0);
 
                     const double Iq = (Rs > 0) ? GetOverlapFactor(q_strength, Rs) : 1.0;
                     const double Iq2 = Iq * Iq;
                     const double base_term = Iq2 * (q_mapped * q_mapped * q_mapped);
-                    const double base_opt = Iq2 * q_strength; // optical strength term uses q_mapped (mapped into 1st BZ)
+                    const double base_opt = Iq2 * (q_strength * q_strength);
                     
                     if (CheckAllowedQ(E_eV, ks, q, hw_LA, -1, md_SI, alpha_val)) { 
                         if (E_eV > hw_LA) sum_integ_LA += (1.0/w_LA) * (N_LA + 1.0) * base_term;
@@ -1190,25 +1198,31 @@ void Band::BuildAnalyticScatteringTable() {
                         sum_integ_TA += (1.0/w_TA) * N_TA * base_term;
                     }
 
-                    // LO optical: absorption / emission (Mech 1/2)
-                    if (CheckAllowedQ(E_eV, ks, q, hw_LO, 1, md_SI, alpha_val)) {
+                    // Optical (LO/TO): relax condition to q <= 2*ks (amorphous / isotropic approximation)
+                    if (q <= 2.0 * ks) {
                         sum_LO_abs += (1.0 / w_LO) * N_LO * base_opt;
-                    }
-                    if (E_eV > hw_LO && CheckAllowedQ(E_eV, ks, q, hw_LO, -1, md_SI, alpha_val)) {
-                        sum_LO_ems += (1.0 / w_LO) * (N_LO + 1.0) * base_opt;
+                        if (E_eV > hw_LO) sum_LO_ems += (1.0 / w_LO) * (N_LO + 1.0) * base_opt;
+
+                        sum_TO_abs += (1.0 / w_TO) * N_TO * base_opt;
+                        if (E_eV > hw_TO) sum_TO_ems += (1.0 / w_TO) * (N_TO + 1.0) * base_opt;
                     }
                 }
                 
                 double pre = md_SI / (4.0 * PI_SI * rho * HBAR_SI * HBAR_SI * ks);
                 Rate_AC = pre * (D_LA*D_LA * sum_integ_LA + D_TA*D_TA * sum_integ_TA) * dq_int;
 
-                const double Rate_LO_abs = pre * (D_LO * D_LO) * sum_LO_abs * dq_int;
-                const double Rate_LO_ems = pre * (D_LO * D_LO) * sum_LO_ems * dq_int;
+                const double Rate_LO_abs = pre * (Dopt_LO * Dopt_LO) * sum_LO_abs * dq_int;
+                const double Rate_LO_ems = pre * (Dopt_LO * Dopt_LO) * sum_LO_ems * dq_int;
+                const double Rate_TO_abs = pre * (Dopt_TO * Dopt_TO) * sum_TO_abs * dq_int;
+                const double Rate_TO_ems = pre * (Dopt_TO * Dopt_TO) * sum_TO_ems * dq_int;
 
                 dose[0][band_idx][itab] = (Rate_AC * S_disorder) * time0;
                 dose[1][band_idx][itab] = (Rate_LO_abs * S_disorder) * time0;
                 dose[2][band_idx][itab] = (Rate_LO_ems * S_disorder) * time0;
-                sumscatt[itab][band_idx] = dose[0][band_idx][itab] + dose[1][band_idx][itab] + dose[2][band_idx][itab];
+                dose[3][band_idx][itab] = (Rate_TO_abs * S_disorder) * time0;
+                dose[4][band_idx][itab] = (Rate_TO_ems * S_disorder) * time0;
+                sumscatt[itab][band_idx] = dose[0][band_idx][itab] + dose[1][band_idx][itab] + dose[2][band_idx][itab]
+                                         + dose[3][band_idx][itab] + dose[4][band_idx][itab];
             }
         }
 
@@ -1719,28 +1733,45 @@ void Band::AnalyticPhononScatter(Particle* p) {
     };
 
     if (this->igzofl) {
-        // IGZO: 0 acoustic (elastic), 1 optical absorption, 2 optical emission (intravalley only)
-        double omega_LO = 0.0;
-        if (phonon.nq_tab > 0) omega_LO = phonon.omega_table[PH_LO].front();
-        if (!(omega_LO > 0.0) && phonon.nq_tab > 1) omega_LO = phonon.omega_table[PH_LO][1];
-        if (!(omega_LO > 0.0) && phonon.nq_tab > 2) omega_LO = phonon.omega_table[PH_LO][phonon.nq_tab / 2];
-        double hw = (omega_LO > 0.0) ? (HBAR_SI * omega_LO / Q_SI) : 0.06;
-        if (hw < 0.02) hw = 0.06;
+        // IGZO: 0 acoustic (elastic), 1 LO absorption, 2 LO emission, 3 TO absorption, 4 TO emission (intravalley only)
+        auto get_hw_from_branch = [&](int branch, double fallback_eV) -> double {
+            double omega = 0.0;
+            if (phonon.nq_tab > 0) omega = phonon.omega_table[branch].front();
+            if (!(omega > 0.0) && phonon.nq_tab > 1) omega = phonon.omega_table[branch][1];
+            if (!(omega > 0.0) && phonon.nq_tab > 2) omega = phonon.omega_table[branch][phonon.nq_tab / 2];
+            double hw = (omega > 0.0) ? (HBAR_SI * omega / Q_SI) : fallback_eV;
+            if (hw < 0.02) hw = fallback_eV;
+            return hw;
+        };
+
+        const double hw_LO = get_hw_from_branch(PH_LO, 0.06);
+        const double hw_TO = get_hw_from_branch(PH_TO, 0.06);
+        double hw = 0.0;
 
         if (iscat == 0) {
             delta_E_eV = 0.0;
-        } else if (iscat == 1) {
+        } else if (iscat == 1) { // LO abs
+            hw = hw_LO;
             delta_E_eV = hw;
-        } else if (iscat == 2) {
+        } else if (iscat == 2) { // LO em
+            hw = hw_LO;
             delta_E_eV = -hw;
-            if (p->energy * eV0 < hw) {
-                analytic_self_scatter = true;
-                return;
-            }
+        } else if (iscat == 3) { // TO abs
+            hw = hw_TO;
+            delta_E_eV = hw;
+        } else if (iscat == 4) { // TO em
+            hw = hw_TO;
+            delta_E_eV = -hw;
         } else {
             analytic_self_scatter = true;
             return;
         }
+
+        if (delta_E_eV < 0.0 && p->energy * eV0 < -delta_E_eV) {
+            analytic_self_scatter = true;
+            return;
+        }
+
         valley_rule = 0;
     } else {
         if (iscat == 0) {
