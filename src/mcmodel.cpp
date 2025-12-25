@@ -4697,7 +4697,16 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   gaasfl = false;       // 未启用 GaAs
   igzofl = true;
 
-  psi_si = 4.05;        // Si 的功函数(eV)
+  // psi_si 在本代码中作为电子亲和能/能级基准使用（单位 eV）
+  // Si: 约 4.05 eV；a-IGZO: 常用取值约 4.16 eV
+  if (igzofl) {
+    psi_si = 4.16;
+    if (mpi_rank == 0) {
+      cout << "  [IGZO Physics] Electron Affinity (psi_si) set to: " << psi_si << " eV" << endl;
+    }
+  } else {
+    psi_si = 4.05;
+  }
 
   if(gaasfl)
     {
