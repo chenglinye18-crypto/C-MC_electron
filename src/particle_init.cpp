@@ -178,8 +178,10 @@ void MeshQuantities::init_particle_data() {
   c_attached_contact->ExtractView(&cell_contact);
 
   // 解析模式下用于计算 k 轴索引的转换系数
-  static const double a_lattice = 5.43e-10;
-  double to_pi = 1.0 / ((PI / a_lattice) * spr0);
+  // 注意：此处的 sia0 已在 init_phpysical_parameter 中完成归一化：sia0 = a_real / spr0
+  // 粒子动量 kx/ky/kz 的单位为 1/spr0，因此：
+  //   k_(pi/a) = k_code / (PI/a_real) = k_code * (a_real/spr0) / PI = k_code * sia0 / PI
+  const double to_pi = sia0 / PI;
 
   /* for each cells and each particle type */
   for(iptype = 0; iptype < 2; iptype ++) {

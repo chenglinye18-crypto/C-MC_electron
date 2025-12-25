@@ -4806,12 +4806,22 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   siut=siut/velo0;     // 归一化横向声速
 
   //____temperature dependent band gap
-  if(T0<190.0)
-    sieg=(1.170+1.059e-5*T0-6.05e-7*T0*T0)/eV0;
-  else if(T0<250.0)
-    sieg=(1.17850-9.025e-5*T0-3.05e-7*T0*T0)/eV0;
-  else
-    sieg=(1.2060-2.730e-4*T0)/eV0;
+  // 说明：sieg 为无量纲量 = Eg / eV0，其中 eV0 = kB*T0（J）
+  // IGZO 在本项目中使用固定宽带隙（与 Band/Ni 等后续逻辑一致），Si 保持原温度拟合。
+  if (igzofl) {
+    const double Eg_igzo_eV = 3.33;
+    sieg = Eg_igzo_eV / eV0;
+    if (mpi_rank == 0) {
+      cout << "  [IGZO] Band gap override: Eg = " << Eg_igzo_eV << " eV" << endl;
+    }
+  } else {
+    if(T0<190.0)
+      sieg=(1.170+1.059e-5*T0-6.05e-7*T0*T0)/eV0;
+    else if(T0<250.0)
+      sieg=(1.17850-9.025e-5*T0-3.05e-7*T0*T0)/eV0;
+    else
+      sieg=(1.2060-2.730e-4*T0)/eV0;
+  }
 
   //____Defines a0pi
   a0pi=TWOPI/sia0;
@@ -4822,6 +4832,10 @@ void MeshQuantities::init_phpysical_parameter(char * filename) {
   eps[OXIDE]= 3.90/(4*PI*cvr*FSC);
   if(gaasfl)
     eps[SILICON]=12.90/(4*PI*cvr*FSC);
+  else if (igzofl) 
+    // [新增 IGZO 分支]
+    // IGZO 的相对介电常数约为 10.0
+    eps[SILICON] = 10.0 / (4 * PI * cvr * FSC);
   else if (sifl)
     eps[SILICON]=11.70/(4*PI*cvr*FSC);
   SurfSc_ail=2.0e-9/spr0;//m

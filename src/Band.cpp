@@ -4492,7 +4492,7 @@ void Band::IELEC(string path)
         alpha_norm = alpha_val * eV0;
 
         // 先生成解析能带文件，再读取并建索引表
-        //InitAnalyticBand(alpha_norm, mell, melt, path);
+        InitAnalyticBand(alpha_norm, mell, melt, path);
         ReadAnalyticData(path);
         InitValleyConfiguration();
         InitAxisLookupTable();
@@ -4505,39 +4505,79 @@ void Band::IELEC(string path)
         // ---------------------------------------------------------
         cout << "  Initializing physical constants and Ni..." << endl;
 
-        // Si/SiO2 导带势垒高度 (约 3.2 eV)
-        sioxbgo = 3.2 /  eV0; 
+        if (this->igzofl) {
+            // #################################################################
+            // IGZO 分支: 宽带隙氧化物参数校准
+            // #################################################################
 
-        // 肖特基势垒降低系数 (沿用原有系数形式并做归一化)
-        beta = 2.15e-5 / eV0 * sqrt(field0);
+            // IGZO/SiO2 导带势垒高度 (Conduction Band Offset, 约 3.23 eV)
+            sioxbgo = 3.23 / eV0;
 
-        // 表面漫散射概率
-        difpr[PELEC] = 0.16; 
-        difpr[PHOLE] = 0.35; 
-        difpr[POXEL] = 0.16;
+            // 肖特基势垒降低系数 (考虑到 IGZO eps_r ~ 10)
+            beta = 2.15e-5 / eV0 * sqrt(field0);
 
-        // 碰撞电离系数占位
-        iifacelec = 0.16;
+            // 表面漫散射概率 (非晶表面通常具有更高的散射率)
+            difpr[PELEC] = 0.20;
+            difpr[PHOLE] = 0.35;
+            difpr[POXEL] = 0.20;
 
-        // 本征载流子浓度: ni = A_ref * T^1.5 * exp(-Eg/2kT)
-        double A_ref = 3.87e16; // cm^-3 K^-1.5
-        double Ni_calculated_cm3 = A_ref * pow(T0, 1.5) * exp(-sieg / 2.0);
+            // 碰撞电离系数占位 (IGZO 宽带隙下碰撞电离极难发生)
+            iifacelec = 0.05;
 
-        // 基于全能带校准的修正系数
-        double Ni_correction = 0.1534; 
-        double Ni_real_cm3 = Ni_calculated_cm3 * Ni_correction;
+            // 本征载流子浓度: Ni = A_ref * T^1.5 * exp(-Eg/2kT)
+            // IGZO 的 A_ref 取决于其有效态密度，参考值略低于 Si
+            double A_ref = 2.10e16; // cm^-3 K^-1.5
+            double Ni_calculated_cm3 = A_ref * pow(T0, 1.5) * exp(-sieg / 2.0);
 
-        // cm^-3 -> m^-3，再归一化
-        Ni = Ni_real_cm3 * 1.0e6 / conc0;
+            // 针对 a-IGZO 尾态分布影响的本征浓度修正系数
+            double Ni_correction = 0.12;
+            double Ni_real_cm3 = Ni_calculated_cm3 * Ni_correction;
 
-        cout << "  [Calibration] Ni Raw: " << Ni_calculated_cm3 << " cm^-3" << endl;
-        cout << "  [Calibration] Correction Factor: " << Ni_correction << endl;
-        cout << "  [Calibration] Ni Final: " << Ni_real_cm3 << " cm^-3 (Normalized: " << Ni << ")" << endl;
+            // cm^-3 -> m^-3，再归一化
+            Ni = Ni_real_cm3 * 1.0e6 / conc0;
+
+            cout << "  [IGZO Branch] Barrier Height: " << sioxbgo * eV0 << " eV" << endl;
+            cout << "  [IGZO Branch] Ni Raw: " << Ni_calculated_cm3 << " cm^-3" << endl;
+            cout << "  [IGZO Branch] Ni Final: " << Ni_real_cm3 << " cm^-3" << endl;
+        } else {
+            // #################################################################
+            // Silicon 分支: 原始校准逻辑
+            // #################################################################
+
+            // Si/SiO2 导带势垒高度 (约 3.2 eV)
+            sioxbgo = 3.2 /  eV0;
+
+            // 肖特基势垒降低系数 (沿用原有系数形式并做归一化)
+            beta = 2.15e-5 / eV0 * sqrt(field0);
+
+            // 表面漫散射概率
+            difpr[PELEC] = 0.16;
+            difpr[PHOLE] = 0.35;
+            difpr[POXEL] = 0.16;
+
+            // 碰撞电离系数占位
+            iifacelec = 0.16;
+
+            // 本征载流子浓度: ni = A_ref * T^1.5 * exp(-Eg/2kT)
+            double A_ref = 3.87e16; // cm^-3 K^-1.5
+            double Ni_calculated_cm3 = A_ref * pow(T0, 1.5) * exp(-sieg / 2.0);
+
+            // 基于全能带校准的修正系数
+            double Ni_correction = 0.1534;
+            double Ni_real_cm3 = Ni_calculated_cm3 * Ni_correction;
+
+            // cm^-3 -> m^-3，再归一化
+            Ni = Ni_real_cm3 * 1.0e6 / conc0;
+
+            cout << "  [Si Branch] Ni Raw: " << Ni_calculated_cm3 << " cm^-3" << endl;
+            cout << "  [Si Branch] Ni Final: " << Ni_real_cm3 << " cm^-3" << endl;
+        }
+
         cout << "  Band gap (sieg): " << sieg * eV0 << " eV" << endl;
 
         // 构建并读取解析注入/密度表
         //BuildAnalyticInjectionTable();
-        ReadAnalyticInjectionTable();
+        //ReadAnalyticInjectionTable();
 
         //ExportAnalyticScattering(path);
         return;

@@ -31,7 +31,7 @@ std::vector<double> Band::GenerateNonUniformTicks() {
 
     // ================== 参数配置 ==================
     double k_max = 2.15;        // 覆盖布里渊区边界（单位：pi/a）
-    double step_coarse = 0.05;  // 粗网格步长 (背景)
+    double step_coarse = 0.1;  // 粗网格步长 (背景)
 
     // ================== 分支逻辑 ==================
     if (this->igzofl) {
@@ -41,7 +41,7 @@ std::vector<double> Band::GenerateNonUniformTicks() {
         // 特点：单能谷，位于 Gamma 点 (0,0,0)
         // 策略：只在 0 附近加密
 
-        double step_gamma = 0.002;  // 极细步长
+        double step_gamma = 0.003;  // 极细步长
         double width_gamma = 0.15;  // 加密范围 +/- 0.15
 
         // 1. Gamma 点附近极细网格
